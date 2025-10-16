@@ -30,6 +30,17 @@ class PostgreSQLDatabase {
   }
 
   async createTables() {
+    // Drop existing tables if they exist (for development)
+    if (process.env.NODE_ENV !== 'production') {
+      try {
+        await this.pool.query('DROP TABLE IF EXISTS meeting_participants CASCADE');
+        await this.pool.query('DROP TABLE IF EXISTS meetings CASCADE');
+        console.log('Dropped existing tables for fresh start');
+      } catch (error) {
+        console.log('No existing tables to drop:', error.message);
+      }
+    }
+
     const tables = [
       // Meetings table to store Fathom meeting data
       `CREATE TABLE IF NOT EXISTS meetings (
@@ -54,7 +65,8 @@ class PostgreSQLDatabase {
         email TEXT,
         domain TEXT,
         is_host BOOLEAN DEFAULT FALSE,
-        FOREIGN KEY (meeting_id) REFERENCES meetings (id) ON DELETE CASCADE
+        FOREIGN KEY (meeting_id) REFERENCES meetings (id) ON DELETE CASCADE,
+        UNIQUE (meeting_id, email)
       )`,
       
       // Create indexes for better performance
