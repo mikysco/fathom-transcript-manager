@@ -84,25 +84,13 @@ class Server {
     this.app.use('/api/transcripts', new TranscriptRoutes(this.transcriptService).getRoutes());
     this.app.use('/api/sync', new SyncRoutes(this.transcriptService).getRoutes());
 
-    // Serve the React app for all other routes (for production)
-    if (process.env.NODE_ENV === 'production') {
-      this.app.get('*', (req, res) => {
-        res.sendFile(path.join(__dirname, 'client/build', 'index.html'));
-      });
-    } else {
-      // Development route
-      this.app.get('/', (req, res) => {
-        res.json({
-          message: 'Fathom Transcript Manager API',
-          version: '1.0.0',
-          endpoints: {
-            health: '/health',
-            transcripts: '/api/transcripts',
-            sync: '/api/sync'
-          }
-        });
-      });
-    }
+    // Serve static files from public directory
+    this.app.use(express.static(path.join(__dirname, 'public')));
+
+    // Serve the main app for all other routes
+    this.app.get('*', (req, res) => {
+      res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    });
   }
 
   setupErrorHandling() {
