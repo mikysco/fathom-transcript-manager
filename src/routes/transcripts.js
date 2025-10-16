@@ -11,9 +11,9 @@ class TranscriptRoutes {
    */
   getRoutes() {
     // Search by email address
-    router.get('/search/email/:email', async (req, res) => {
+    router.get('/search/email', async (req, res) => {
       try {
-        const { email } = req.params;
+        const { q: email } = req.query;
         const { limit } = req.query;
         
         const results = await this.transcriptService.searchByEmail(email, { limit });
@@ -34,9 +34,9 @@ class TranscriptRoutes {
     });
 
     // Search by domain
-    router.get('/search/domain/:domain', async (req, res) => {
+    router.get('/search/domain', async (req, res) => {
       try {
-        const { domain } = req.params;
+        const { q: domain } = req.query;
         const { limit } = req.query;
         
         const results = await this.transcriptService.searchByDomain(domain, { limit });
@@ -57,9 +57,9 @@ class TranscriptRoutes {
     });
 
     // Search by company name
-    router.get('/search/company/:company', async (req, res) => {
+    router.get('/search/company', async (req, res) => {
       try {
-        const { company } = req.params;
+        const { q: company } = req.query;
         const { limit } = req.query;
         
         const results = await this.transcriptService.searchByCompany(company, { limit });

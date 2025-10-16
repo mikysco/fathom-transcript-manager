@@ -90,12 +90,12 @@ async function searchTranscripts(type) {
         
         const endpoint = `/api/transcripts/search/${type}`;
         const response = await fetch(`${endpoint}?q=${encodeURIComponent(query)}`);
-        const results = await response.json();
+        const result = await response.json();
         
-        if (response.ok) {
-            displayResults(results);
+        if (response.ok && result.success) {
+            displayResults(result.data);
         } else {
-            showError(`❌ Search failed: ${results.error}`);
+            showError(`❌ Search failed: ${result.error || result.message}`);
         }
     } catch (error) {
         showError(`❌ Network error: ${error.message}`);
