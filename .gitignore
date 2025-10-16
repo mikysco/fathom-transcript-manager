@@ -71,3 +71,8 @@ Thumbs.db
 
 # Test files
 test-postgres.js
+
+# Sensitive files that shouldn't be committed
+.eng
+your_hubspot_api_key_here
+.env.example
