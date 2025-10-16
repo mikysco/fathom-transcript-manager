@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fathom Transcript Manager</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .transcript-card {
+            transition: all 0.3s ease;
+        }
+        .transcript-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        .loading {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div id="app">
+        <!-- Header -->
+        <header class="bg-white shadow-sm border-b">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between items-center py-4">
+                    <div class="flex items-center">
+                        <i class="fas fa-microphone-alt text-blue-600 text-2xl mr-3"></i>
+                        <h1 class="text-2xl font-bold text-gray-900">Fathom Transcript Manager</h1>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <button id="testApiBtn" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors">
+                            <i class="fas fa-heartbeat mr-2"></i>Test API
+                        </button>
+                        <button id="syncBtn" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                            <i class="fas fa-sync-alt mr-2"></i>Sync Data
+                        </button>
+                        <div id="syncStatus" class="text-sm text-gray-600"></div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <!-- Search Section -->
+            <div class="bg-white rounded-lg shadow-sm p-6 mb-8">
+                <h2 class="text-xl font-semibold text-gray-900 mb-4">Search Transcripts</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <!-- Email Search -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Search by Email</label>
+                        <div class="flex">
+                            <input 
+                                type="email" 
+                                id="emailInput" 
+                                placeholder="john@example.com"
+                                class="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            >
+                            <button 
+                                id="searchEmailBtn"
+                                class="px-4 py-2 bg-blue-600 text-white rounded-r-md hover:bg-blue-700 transition-colors"
+                            >
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Domain Search -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Search by Domain</label>
+                        <div class="flex">
+                            <input 
+                                type="text" 
+                                id="domainInput" 
+                                placeholder="example.com"
+                                class="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            >
+                            <button 
+                                id="searchDomainBtn"
+                                class="px-4 py-2 bg-blue-600 text-white rounded-r-md hover:bg-blue-700 transition-colors"
+                            >
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Company Search -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Search by Company</label>
+                        <div class="flex">
+                            <input 
+                                type="text" 
+                                id="companyInput" 
+                                placeholder="Acme Corp"
+                                class="flex-1 px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            >
+                            <button 
+                                id="searchCompanyBtn"
+                                class="px-4 py-2 bg-blue-600 text-white rounded-r-md hover:bg-blue-700 transition-colors"
+                            >
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Domain Links -->
+                <div id="quickDomains" class="mt-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Quick Domain Access</label>
+                    <div id="domainButtons" class="flex flex-wrap gap-2">
+                        <!-- Domain buttons will be populated here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div class="bg-white rounded-lg shadow-sm p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold text-gray-900">Search Results</h2>
+                    <div class="flex items-center space-x-4">
+                        <button 
+                            id="selectAllBtn" 
+                            class="text-blue-600 hover:text-blue-800 transition-colors"
+                            style="display: none;"
+                        >
+                            <i class="fas fa-check-square mr-1"></i>Select All
+                        </button>
+                        <button 
+                            id="downloadBtn" 
+                            class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+                            style="display: none;"
+                        >
+                            <i class="fas fa-download mr-2"></i>Download Selected (<span id="selectedCount">0</span>)
+                        </button>
+                    </div>
+                </div>
+
+                <div id="results" class="space-y-4">
+                    <div class="text-center text-gray-500 py-8">
+                        <i class="fas fa-search text-4xl mb-4"></i>
+                        <p>Use the search fields above to find transcripts</p>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Loading Overlay -->
+        <div id="loadingOverlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" style="display: none;">
+            <div class="bg-white rounded-lg p-6 flex items-center space-x-3">
+                <i class="fas fa-spinner loading text-blue-600"></i>
+                <span class="text-gray-700">Loading...</span>
+            </div>
+        </div>
+
+        <!-- Alert Container -->
+        <div id="alertContainer" class="fixed top-4 right-4 z-50"></div>
+    </div>
+
+    <script>
+        class TranscriptManager {
+            constructor() {
+                this.apiBase = '/api';
+                this.selectedTranscripts = new Set();
+                this.currentResults = [];
+                
+                this.initializeEventListeners();
+                this.loadQuickDomains();
+            }
+
+            initializeEventListeners() {
+                // Search buttons
+                document.getElementById('searchEmailBtn').addEventListener('click', () => this.searchByEmail());
+                document.getElementById('searchDomainBtn').addEventListener('click', () => this.searchByDomain());
+                document.getElementById('searchCompanyBtn').addEventListener('click', () => this.searchByCompany());
+                
+                // Enter key support
+                document.getElementById('emailInput').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') this.searchByEmail();
+                });
+                document.getElementById('domainInput').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') this.searchByDomain();
+                });
+                document.getElementById('companyInput').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') this.searchByCompany();
+                });
+                
+                // Sync and test buttons
+                document.getElementById('syncBtn').addEventListener('click', () => this.syncData());
+                document.getElementById('testApiBtn').addEventListener('click', () => this.testFathomAPI());
+                
+                // Download functionality
+                document.getElementById('selectAllBtn').addEventListener('click', () => this.selectAll());
+                document.getElementById('downloadBtn').addEventListener('click', () => this.downloadTranscripts());
+            }
+
+            async searchByEmail() {
+                const email = document.getElementById('emailInput').value.trim();
+                if (!email) {
+                    this.showError('Please enter an email address');
+                    return;
+                }
+                
+                this.showLoading();
+                try {
+                    const response = await fetch(`${this.apiBase}/transcripts/search/email/${encodeURIComponent(email)}`);
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        this.displayResults(data.data, `Results for email: ${email}`);
+                    } else {
+                        this.showError(data.message || 'Search failed');
+                    }
+                } catch (error) {
+                    console.error('Error searching by email:', error);
+                    this.showError('Failed to search by email');
+                } finally {
+                    this.hideLoading();
+                }
+            }
+
+            async searchByDomain() {
+                const domain = document.getElementById('domainInput').value.trim();
+                if (!domain) {
+                    this.showError('Please enter a domain');
+                    return;
+                }
+                
+                this.showLoading();
+                try {
+                    const response = await fetch(`${this.apiBase}/transcripts/search/domain/${encodeURIComponent(domain)}`);
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        this.displayResults(data.data, `Results for domain: ${domain}`);
+                    } else {
+                        this.showError(data.message || 'Search failed');
+                    }
+                } catch (error) {
+                    console.error('Error searching by domain:', error);
+                    this.showError('Failed to search by domain');
+                } finally {
+                    this.hideLoading();
+                }
+            }
+
+            async searchByCompany() {
+                const company = document.getElementById('companyInput').value.trim();
+                if (!company) {
+                    this.showError('Please enter a company name');
+                    return;
+                }
+                
+                this.showLoading();
+                try {
+                    const response = await fetch(`${this.apiBase}/transcripts/search/company/${encodeURIComponent(company)}`);
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        this.displayResults(data.data, `Results for company: ${company}`);
+                    } else {
+                        this.showError(data.message || 'Search failed');
+                    }
+                } catch (error) {
+                    console.error('Error searching by company:', error);
+                    this.showError('Failed to search by company');
+                } finally {
+                    this.hideLoading();
+                }
+            }
+
+            async loadQuickDomains() {
+                try {
+                    const response = await fetch(`${this.apiBase}/transcripts/domains`);
+                    const data = await response.json();
+                    
+                    if (data.success && data.data.length > 0) {
+                        const container = document.getElementById('domainButtons');
+                        container.innerHTML = data.data.slice(0, 10).map(domain => 
+                            `<button class="px-3 py-1 bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 transition-colors text-sm" onclick="app.searchByDomainValue('${domain.domain}')">
+                                ${domain.domain} (${domain.meetingCount})
+                            </button>`
+                        ).join('');
+                    }
+                } catch (error) {
+                    console.error('Error loading domains:', error);
+                }
+            }
+
+            async searchByDomainValue(domain) {
+                document.getElementById('domainInput').value = domain;
+                await this.searchByDomain();
+            }
+
+            displayResults(results, title) {
+                this.currentResults = results;
+                this.selectedTranscripts.clear();
+                
+                const resultsContainer = document.getElementById('results');
+                
+                if (results.length === 0) {
+                    resultsContainer.innerHTML = `
+                        <div class="text-center text-gray-500 py-8">
+                            <i class="fas fa-search text-4xl mb-4"></i>
+                            <p>No transcripts found</p>
+                        </div>
+                    `;
+                    this.hideActionButtons();
+                    return;
+                }
+
+                resultsContainer.innerHTML = `
+                    <div class="mb-4">
+                        <h3 class="text-lg font-medium text-gray-900">${title}</h3>
+                        <p class="text-sm text-gray-600">Found ${results.length} transcript${results.length !== 1 ? 's' : ''}</p>
+                    </div>
+                    <div class="space-y-4">
+                        ${results.map(transcript => this.createTranscriptCard(transcript)).join('')}
+                    </div>
+                `;
+
+                this.showActionButtons();
+                this.updateSelectedCount();
+            }
+
+            createTranscriptCard(transcript) {
+                const date = new Date(transcript.startTime).toLocaleDateString();
+                const time = new Date(transcript.startTime).toLocaleTimeString();
+                const duration = Math.round(transcript.duration / 60);
+                
+                return `
+                    <div class="transcript-card bg-white border border-gray-200 rounded-lg p-4">
+                        <div class="flex items-start space-x-4">
+                            <input 
+                                type="checkbox" 
+                                class="mt-1 transcript-checkbox" 
+                                data-id="${transcript.id}"
+                                onchange="app.toggleSelection(${transcript.id})"
+                            >
+                            <div class="flex-1">
+                                <div class="flex justify-between items-start mb-2">
+                                    <h4 class="text-lg font-medium text-gray-900">${transcript.title}</h4>
+                                    <span class="text-sm text-gray-500">${duration} min</span>
+                                </div>
+                                <div class="text-sm text-gray-600 mb-2">
+                                    <i class="fas fa-calendar mr-1"></i>${date} at ${time}
+                                </div>
+                                <div class="text-sm text-gray-600 mb-3">
+                                    <i class="fas fa-users mr-1"></i>${transcript.participants.join(', ')}
+                                </div>
+                                ${transcript.summary ? `
+                                    <div class="text-sm text-gray-700 bg-gray-50 p-3 rounded">
+                                        <strong>Summary:</strong> ${transcript.summary.substring(0, 200)}${transcript.summary.length > 200 ? '...' : ''}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            toggleSelection(id) {
+                if (this.selectedTranscripts.has(id)) {
+                    this.selectedTranscripts.delete(id);
+                } else {
+                    this.selectedTranscripts.add(id);
+                }
+                this.updateSelectedCount();
+            }
+
+            selectAll() {
+                const checkboxes = document.querySelectorAll('.transcript-checkbox');
+                const allSelected = Array.from(checkboxes).every(cb => cb.checked);
+                
+                checkboxes.forEach(cb => {
+                    cb.checked = !allSelected;
+                    const id = parseInt(cb.dataset.id);
+                    if (!allSelected) {
+                        this.selectedTranscripts.add(id);
+                    } else {
+                        this.selectedTranscripts.delete(id);
+                    }
+                });
+                
+                this.updateSelectedCount();
+            }
+
+            updateSelectedCount() {
+                const count = this.selectedTranscripts.size;
+                document.getElementById('selectedCount').textContent = count;
+                
+                if (count > 0) {
+                    document.getElementById('downloadBtn').style.display = 'block';
+                    document.getElementById('selectAllBtn').style.display = 'block';
+                } else {
+                    document.getElementById('downloadBtn').style.display = 'none';
+                    document.getElementById('selectAllBtn').style.display = 'none';
+                }
+            }
+
+            showActionButtons() {
+                document.getElementById('selectAllBtn').style.display = 'block';
+                if (this.selectedTranscripts.size > 0) {
+                    document.getElementById('downloadBtn').style.display = 'block';
+                }
+            }
+
+            hideActionButtons() {
+                document.getElementById('selectAllBtn').style.display = 'none';
+                document.getElementById('downloadBtn').style.display = 'none';
+            }
+
+            async downloadTranscripts() {
+                if (this.selectedTranscripts.size === 0) {
+                    this.showError('Please select transcripts to download');
+                    return;
+                }
+
+                this.showLoading();
+                try {
+                    const response = await fetch(`${this.apiBase}/transcripts/concatenate`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            transcriptIds: Array.from(this.selectedTranscripts)
+                        })
+                    });
+
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        // Create and download file
+                        const blob = new Blob([data.data.text], { type: 'text/plain' });
+                        const url = window.URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = `transcripts-${new Date().toISOString().split('T')[0]}.txt`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        window.URL.revokeObjectURL(url);
+                        
+                        this.showSuccess(`Downloaded ${data.data.count} transcripts`);
+                    } else {
+                        this.showError(data.message || 'Download failed');
+                    }
+                } catch (error) {
+                    console.error('Error downloading transcripts:', error);
+                    this.showError('Failed to download transcripts');
+                } finally {
+                    this.hideLoading();
+                }
+            }
+
+            async testFathomAPI() {
+                try {
+                    document.getElementById('testApiBtn').disabled = true;
+                    document.getElementById('testApiBtn').innerHTML = '<i class="fas fa-heartbeat loading mr-2"></i>Testing...';
+
+                    const response = await fetch(`${this.apiBase}/sync/test-fathom`);
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        this.showSuccess(`✅ API Test Successful! Found ${data.data.meetingsFound} meetings.`);
+                    } else {
+                        this.showError(`❌ API Test Failed: ${data.message}`);
+                    }
+                } catch (error) {
+                    console.error('Error testing API:', error);
+                    this.showError('❌ API Test Failed: Network error');
+                } finally {
+                    document.getElementById('testApiBtn').disabled = false;
+                    document.getElementById('testApiBtn').innerHTML = '<i class="fas fa-heartbeat mr-2"></i>Test API';
+                }
+            }
+
+            async syncData() {
+                try {
+                    this.showLoading();
+                    document.getElementById('syncBtn').disabled = true;
+                    document.getElementById('syncBtn').innerHTML = '<i class="fas fa-sync-alt loading mr-2"></i>Syncing...';
+
+                    const response = await fetch(`${this.apiBase}/sync/meetings`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        }
+                    });
+
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        this.showSuccess(`Data synced successfully! ${data.data.synced} meetings processed.`);
+                        this.loadQuickDomains(); // Refresh domain list
+                    } else {
+                        this.showError(data.message || 'Failed to sync data');
+                    }
+                } catch (error) {
+                    console.error('Error syncing data:', error);
+                    this.showError('Failed to sync data');
+                } finally {
+                    this.hideLoading();
+                    document.getElementById('syncBtn').disabled = false;
+                    document.getElementById('syncBtn').innerHTML = '<i class="fas fa-sync-alt mr-2"></i>Sync Data';
+                }
+            }
+
+            showLoading() {
+                document.getElementById('loadingOverlay').style.display = 'flex';
+            }
+
+            hideLoading() {
+                document.getElementById('loadingOverlay').style.display = 'none';
+            }
+
+            showSuccess(message) {
+                this.showAlert(message, 'success');
+            }
+
+            showError(message) {
+                this.showAlert(message, 'error');
+            }
+
+            showAlert(message, type) {
+                const alertContainer = document.getElementById('alertContainer');
+                const alertId = 'alert-' + Date.now();
+                
+                const bgColor = type === 'success' ? 'bg-green-500' : 'bg-red-500';
+                const icon = type === 'success' ? 'fa-check-circle' : 'fa-exclamation-circle';
+                
+                const alert = document.createElement('div');
+                alert.id = alertId;
+                alert.className = `${bgColor} text-white px-6 py-3 rounded-lg shadow-lg mb-2 flex items-center space-x-2`;
+                alert.innerHTML = `
+                    <i class="fas ${icon}"></i>
+                    <span>${message}</span>
+                    <button onclick="this.parentElement.remove()" class="ml-4 text-white hover:text-gray-200">
+                        <i class="fas fa-times"></i>
+                    </button>
+                `;
+                
+                alertContainer.appendChild(alert);
+                
+                // Auto remove after 5 seconds
+                setTimeout(() => {
+                    const element = document.getElementById(alertId);
+                    if (element) {
+                        element.remove();
+                    }
+                }, 5000);
+            }
+        }
+
+        // Initialize the app
+        const app = new TranscriptManager();
+    </script>
+</body>
+</html>
