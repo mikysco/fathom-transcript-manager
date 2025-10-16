@@ -1,0 +1,14 @@
+# Fathom API Configuration
+FATHOM_API_KEY=your_fathom_api_key_here
+FATHOM_BASE_URL=https://api.fathom.ai/v1
+
+# HubSpot API Configuration
+HUBSPOT_API_KEY=your_hubspot_api_key_here
+HUBSPOT_BASE_URL=https://api.hubapi.com
+
+# Server Configuration
+PORT=3001
+NODE_ENV=development
+
+# Database Configuration
+DB_PATH=./data/transcripts.db
