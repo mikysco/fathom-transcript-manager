@@ -114,11 +114,8 @@ class PostgreSQLDatabase {
   }
 
   async query(text, params = []) {
-    const start = Date.now();
     try {
       const res = await this.pool.query(text, params);
-      const duration = Date.now() - start;
-      console.log('Executed query', { text, duration, rows: res.rowCount });
       return res;
     } catch (error) {
       console.error('Database query error:', error);

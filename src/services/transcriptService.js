@@ -17,7 +17,6 @@ class TranscriptService {
    */
   async syncMeetings(options = {}) {
     try {
-      console.log('Starting meeting sync...');
       
       // Get all meetings from Fathom
       const meetings = await this.fathomService.syncAllMeetings(this.db, options);
@@ -77,12 +76,8 @@ class TranscriptService {
         }
 
         syncedCount++;
-        if (syncedCount % 10 === 0) {
-          console.log(`Processed ${syncedCount} meetings...`);
-        }
       }
 
-      console.log(`Sync complete: ${syncedCount} meetings processed`);
       return { synced: syncedCount };
     } catch (error) {
       console.error('Error syncing meetings:', error);

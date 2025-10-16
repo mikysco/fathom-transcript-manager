@@ -25,7 +25,6 @@ class FathomService {
       };
 
       const response = await this.client.get('/meetings', { params });
-      console.log(`✅ Fathom API call successful: GET /meetings (Status: ${response.status}, Count: ${response.data?.items?.length || 0})`);
       return response.data;
     } catch (error) {
       console.error('Error fetching meetings from Fathom:', error.response?.data || error.message);
@@ -46,7 +45,6 @@ class FathomService {
       };
 
       const response = await this.client.get('/meetings', { params });
-      console.log(`✅ Fathom API call successful: GET /meetings by email ${email} (Status: ${response.status}, Count: ${response.data?.items?.length || 0})`);
       return response.data;
     } catch (error) {
       console.error(`Error fetching meetings for email ${email}:`, error.response?.data || error.message);
@@ -74,13 +72,10 @@ class FathomService {
         );
       }) || [];
       
-      console.log(`✅ Fathom API call successful: GET /meetings by domain ${domain} (Status: ${response.status}, Filtered Count: ${filteredMeetings.length})`);
-      
       return {
         items: filteredMeetings,
         total: filteredMeetings.length
       };
-      return response.data;
     } catch (error) {
       console.error(`Error fetching meetings for domain ${domain}:`, error.response?.data || error.message);
       throw error;
@@ -111,8 +106,6 @@ class FathomService {
         return titleMatch || participantMatch;
       }) || [];
 
-      console.log(`✅ Fathom API call successful: GET /meetings by company "${companyName}" (Status: ${response.status}, Filtered Count: ${filteredMeetings.length})`);
-      
       return {
         items: filteredMeetings,
         total: filteredMeetings.length
@@ -171,10 +164,6 @@ class FathomService {
         hasMore = (response.items?.length || 0) === limit;
         offset += limit;
         
-        console.log(`Fetched ${allMeetings.length} meetings so far...`);
-      }
-
-      console.log(`Total meetings fetched: ${allMeetings.length}`);
       return allMeetings;
     } catch (error) {
       console.error('Error syncing meetings:', error);
