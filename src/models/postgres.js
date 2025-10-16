@@ -41,6 +41,9 @@ class PostgreSQLDatabase {
       }
     }
 
+    // Run migrations for existing tables
+    await this.runMigrations();
+
     const tables = [
       // Meetings table to store Fathom meeting data
       `CREATE TABLE IF NOT EXISTS meetings (
@@ -85,6 +88,28 @@ class PostgreSQLDatabase {
     } catch (error) {
       console.error('Error creating PostgreSQL tables:', error);
       throw error;
+    }
+  }
+
+  async runMigrations() {
+    try {
+      // Add unique constraint to meeting_participants if it doesn't exist
+      await this.pool.query(`
+        DO $$ 
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_constraint 
+            WHERE conname = 'meeting_participants_meeting_id_email_key'
+          ) THEN
+            ALTER TABLE meeting_participants 
+            ADD CONSTRAINT meeting_participants_meeting_id_email_key 
+            UNIQUE (meeting_id, email);
+          END IF;
+        END $$;
+      `);
+      console.log('Migration completed: Added unique constraint to meeting_participants');
+    } catch (error) {
+      console.log('Migration error (may be expected):', error.message);
     }
   }
 
