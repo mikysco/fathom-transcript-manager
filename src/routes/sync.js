@@ -147,6 +147,57 @@ class SyncRoutes {
       }
     });
 
+    // Debug endpoint to test transcript duration extraction
+    router.get('/debug-transcript/:id', async (req, res) => {
+      try {
+        const { id } = req.params;
+        const db = this.transcriptService.db;
+        
+        const meeting = await db.get(`
+          SELECT id, title, duration, transcript
+          FROM meetings 
+          WHERE id = $1
+        `, [id]);
+        
+        if (!meeting) {
+          return res.status(404).json({
+            success: false,
+            error: 'Meeting not found'
+          });
+        }
+        
+        let transcriptDuration = 0;
+        if (meeting.transcript) {
+          transcriptDuration = this.extractDurationFromTranscript(meeting.transcript);
+        }
+        
+        res.json({
+          success: true,
+          data: {
+            meeting: {
+              id: meeting.id,
+              title: meeting.title,
+              currentDuration: meeting.duration,
+              extractedDuration: transcriptDuration
+            },
+            transcript: {
+              length: meeting.transcript?.length || 0,
+              preview: meeting.transcript?.substring(0, 500) || 'No transcript',
+              durationExtracted: transcriptDuration
+            }
+          }
+        });
+        
+      } catch (error) {
+        console.error('Error debugging transcript:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to debug transcript',
+          message: error.message
+        });
+      }
+    });
+
     // Fix durations for existing meetings
     router.post('/fix-durations', async (req, res) => {
       try {
