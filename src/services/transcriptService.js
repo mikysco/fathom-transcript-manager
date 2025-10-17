@@ -17,6 +17,8 @@ class TranscriptService {
    */
   async syncMeetings(options = {}) {
     try {
+      // Update sync status to 'in_progress'
+      await this.db.updateSyncStatus('in_progress', 0);
       
       // Get all meetings from Fathom
       const meetings = await this.fathomService.syncAllMeetings(this.db, options);
@@ -78,9 +80,14 @@ class TranscriptService {
         syncedCount++;
       }
 
+      // Update sync status to 'completed' with count
+      await this.db.updateSyncStatus('completed', syncedCount);
+
       return { synced: syncedCount };
     } catch (error) {
       console.error('Error syncing meetings:', error);
+      // Update sync status to 'failed'
+      await this.db.updateSyncStatus('failed', 0);
       throw error;
     }
   }
@@ -393,6 +400,18 @@ class TranscriptService {
       return concatenatedText;
     } catch (error) {
       console.error('Error concatenating transcripts:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get dashboard metrics including sync status
+   */
+  async getDashboardMetrics() {
+    try {
+      return await this.db.getDashboardMetrics();
+    } catch (error) {
+      console.error('Error getting dashboard metrics:', error);
       throw error;
     }
   }

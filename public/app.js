@@ -8,6 +8,11 @@ const emailSearchBtn = document.getElementById('emailSearchBtn');
 const domainSearchBtn = document.getElementById('domainSearchBtn');
 const companySearchBtn = document.getElementById('companySearchBtn');
 
+// Dashboard Elements
+const totalTranscripts = document.getElementById('totalTranscripts');
+const totalCompanies = document.getElementById('totalCompanies');
+const lastSyncTime = document.getElementById('lastSyncTime');
+
 // Event Listeners
 if (testApiBtn) {
     testApiBtn.addEventListener('click', testFathomApi);
@@ -27,6 +32,68 @@ if (domainSearchBtn) {
 
 if (companySearchBtn) {
     companySearchBtn.addEventListener('click', () => searchTranscripts('company'));
+}
+
+// Dashboard Functions
+async function loadDashboard() {
+    try {
+        const response = await fetch('/api/transcripts/dashboard');
+        const result = await response.json();
+        
+        if (response.ok && result.success) {
+            updateDashboardMetrics(result.data);
+        } else {
+            console.error('Failed to load dashboard:', result.error);
+            showDashboardError();
+        }
+    } catch (error) {
+        console.error('Error loading dashboard:', error);
+        showDashboardError();
+    }
+}
+
+function updateDashboardMetrics(data) {
+    if (totalTranscripts) {
+        totalTranscripts.textContent = data.total_transcripts.toLocaleString();
+    }
+    
+    if (totalCompanies) {
+        totalCompanies.textContent = data.total_companies.toLocaleString();
+    }
+    
+    if (lastSyncTime) {
+        if (data.last_sync_time) {
+            const syncDate = new Date(data.last_sync_time);
+            const now = new Date();
+            const diffMs = now - syncDate;
+            const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+            const diffDays = Math.floor(diffHours / 24);
+            
+            let timeText;
+            if (diffDays > 0) {
+                timeText = `${diffDays} day${diffDays > 1 ? 's' : ''} ago`;
+            } else if (diffHours > 0) {
+                timeText = `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`;
+            } else {
+                const diffMinutes = Math.floor(diffMs / (1000 * 60));
+                timeText = diffMinutes < 1 ? 'Just now' : `${diffMinutes} minute${diffMinutes > 1 ? 's' : ''} ago`;
+            }
+            
+            lastSyncTime.innerHTML = `
+                <span class="text-gray-900">${timeText}</span>
+                <br>
+                <span class="text-xs text-gray-500">${syncDate.toLocaleString()}</span>
+            `;
+        } else {
+            lastSyncTime.textContent = 'Never synced';
+        }
+    }
+}
+
+function showDashboardError() {
+    if (totalTranscripts) totalTranscripts.textContent = 'Error';
+    if (totalCompanies) totalCompanies.textContent = 'Error';
+    if (lastSyncTime) lastSyncTime.textContent = 'Error loading';
 }
 
 // API Functions
@@ -62,6 +129,8 @@ async function syncData() {
         
         if (response.ok) {
             showSuccess(`✅ Sync complete: ${result.synced} meetings processed`);
+            // Refresh dashboard after successful sync
+            await loadDashboard();
         } else {
             showError(`❌ Sync failed: ${result.error}`);
         }
@@ -493,4 +562,6 @@ document.addEventListener('click', (e) => {
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Fathom Transcript Manager initialized');
+    // Load dashboard metrics on page load
+    loadDashboard();
 });

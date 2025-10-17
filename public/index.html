@@ -47,6 +47,40 @@
         </header>
 
         <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <!-- Dashboard Section -->
+            <div class="bg-white rounded-lg shadow-sm p-6 mb-8">
+                <h2 class="text-xl font-semibold text-gray-900 mb-4">📊 Database Status</h2>
+                <div id="dashboardMetrics" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-blue-50 p-4 rounded-lg">
+                        <div class="flex items-center">
+                            <i class="fas fa-file-alt text-blue-600 text-2xl mr-3"></i>
+                            <div>
+                                <p class="text-sm text-gray-600">Total Transcripts</p>
+                                <p id="totalTranscripts" class="text-2xl font-bold text-gray-900">Loading...</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-green-50 p-4 rounded-lg">
+                        <div class="flex items-center">
+                            <i class="fas fa-building text-green-600 text-2xl mr-3"></i>
+                            <div>
+                                <p class="text-sm text-gray-600">Total Companies</p>
+                                <p id="totalCompanies" class="text-2xl font-bold text-gray-900">Loading...</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-purple-50 p-4 rounded-lg">
+                        <div class="flex items-center">
+                            <i class="fas fa-clock text-purple-600 text-2xl mr-3"></i>
+                            <div>
+                                <p class="text-sm text-gray-600">Last Updated</p>
+                                <p id="lastSyncTime" class="text-sm font-medium text-gray-900">Loading...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Search Section -->
             <div class="bg-white rounded-lg shadow-sm p-6 mb-8">
                 <h2 class="text-xl font-semibold text-gray-900 mb-4">Search Transcripts</h2>
