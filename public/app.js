@@ -39,6 +39,13 @@ if (companySearchBtn) {
     companySearchBtn.addEventListener('click', () => searchTranscripts('company'));
 }
 
+// Download button event listener
+document.addEventListener('click', (e) => {
+    if (e.target.id === 'downloadBtn') {
+        handleDownloadClick();
+    }
+});
+
 // Dashboard Functions
 async function loadDashboard() {
     try {
@@ -211,32 +218,83 @@ function showError(message) {
 function displayResults(results) {
     if (!results || results.length === 0) {
         searchResults.innerHTML = `
-            <div class="no-results">
-                <p>No transcripts found for your search.</p>
+            <div class="text-center text-gray-500 py-8">
+                <i class="fas fa-search text-4xl mb-4"></i>
+                <p>No transcripts found for your search. Try syncing data or a different query.</p>
             </div>
         `;
         return;
     }
     
-    const resultsHtml = results.map(result => `
-        <div class="transcript-card">
-            <h3>${result.title || 'Untitled Meeting'}</h3>
-            <div class="transcript-meta">
-                <span class="date">${formatDate(result.startTime)}</span>
-                <span class="duration">${formatDuration(result.duration)}</span>
-                <span class="participants">${result.participants ? result.participants.length : 0} participants</span>
-            </div>
-            <div class="transcript-summary">
-                ${result.summary || 'No summary available'}
-            </div>
-            <div class="transcript-actions">
-                <button class="btn btn-secondary view-transcript-btn" data-id="${result.id}">View Full Transcript</button>
-                <button class="btn btn-primary download-transcript-btn" data-id="${result.id}">Download</button>
-            </div>
-        </div>
-    `).join('');
+    // Sort results by date (newest first)
+    const sortedResults = results.sort((a, b) => new Date(b.startTime) - new Date(a.startTime));
     
-    searchResults.innerHTML = resultsHtml;
+    // Show selection controls
+    const selectAllBtn = document.getElementById('selectAllBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const selectedCountSpan = document.getElementById('selectedCount');
+    
+    if (selectAllBtn) selectAllBtn.style.display = 'inline-block';
+    if (downloadBtn) downloadBtn.style.display = 'inline-block';
+    if (selectedCountSpan) selectedCountSpan.textContent = '0';
+    
+    // Create table HTML
+    const tableHtml = `
+        <div class="overflow-x-auto">
+            <table class="min-w-full bg-white border border-gray-200 rounded-lg shadow-sm">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-8">
+                            <input type="checkbox" id="selectAllCheckbox" class="form-checkbox h-4 w-4 text-blue-600">
+                        </th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Meeting Title</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date/Time</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Participants</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    ${sortedResults.map(result => `
+                        <tr class="hover:bg-gray-50 transition-colors">
+                            <td class="px-4 py-3">
+                                <input type="checkbox" class="transcript-checkbox form-checkbox h-4 w-4 text-blue-600" value="${result.id}">
+                            </td>
+                            <td class="px-4 py-3">
+                                <div class="text-sm font-medium text-gray-900 max-w-xs truncate" title="${result.title || 'Untitled Meeting'}">
+                                    ${result.title || 'Untitled Meeting'}
+                                </div>
+                            </td>
+                            <td class="px-4 py-3 text-sm text-gray-600">
+                                ${formatDate(result.startTime)}
+                            </td>
+                            <td class="px-4 py-3 text-sm text-gray-600">
+                                ${result.participants ? result.participants.length : 0}
+                            </td>
+                            <td class="px-4 py-3 text-sm text-gray-600">
+                                ${formatDuration(result.duration)}
+                            </td>
+                            <td class="px-4 py-3 text-sm text-gray-600">
+                                <div class="flex space-x-2">
+                                    <button class="view-transcript-btn text-blue-600 hover:text-blue-800 font-medium" data-id="${result.id}">
+                                        View
+                                    </button>
+                                    <button class="download-transcript-btn text-green-600 hover:text-green-800 font-medium" data-id="${result.id}">
+                                        Download
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+    
+    searchResults.innerHTML = tableHtml;
+    
+    // Add event listeners for checkboxes
+    setupCheckboxListeners();
 }
 
 function formatDate(dateString) {
@@ -245,11 +303,66 @@ function formatDate(dateString) {
     return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
 }
 
-function formatDuration(minutes) {
-    if (!minutes) return 'Unknown duration';
+function formatDuration(seconds) {
+    if (!seconds) return 'Unknown';
+    const minutes = Math.floor(seconds / 60);
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
-    return hours > 0 ? `${hours}h ${mins}m` : `${mins}m`;
+    if (hours > 0) {
+        return `${hours}h ${mins}m`;
+    }
+    return `${minutes}m`;
+}
+
+function setupCheckboxListeners() {
+    // Individual checkbox listeners
+    document.querySelectorAll('.transcript-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', (e) => {
+            if (e.target.checked) {
+                app.selectedTranscripts.add(e.target.value);
+            } else {
+                app.selectedTranscripts.delete(e.target.value);
+            }
+            updateSelectedCount();
+        });
+    });
+    
+    // Select all checkbox listener
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', (e) => {
+            const checkboxes = document.querySelectorAll('.transcript-checkbox');
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = e.target.checked;
+                if (e.target.checked) {
+                    app.selectedTranscripts.add(checkbox.value);
+                } else {
+                    app.selectedTranscripts.delete(checkbox.value);
+                }
+            });
+            updateSelectedCount();
+        });
+    }
+}
+
+function updateSelectedCount() {
+    const selectedCountSpan = document.getElementById('selectedCount');
+    const downloadBtn = document.getElementById('downloadBtn');
+    
+    if (selectedCountSpan) {
+        selectedCountSpan.textContent = app.selectedTranscripts.size;
+    }
+    
+    if (downloadBtn) {
+        const count = app.selectedTranscripts.size;
+        if (count === 0) {
+            downloadBtn.innerHTML = '<i class="fas fa-download mr-2"></i>Download Selected (0)';
+        } else if (count === 1) {
+            downloadBtn.innerHTML = '<i class="fas fa-download mr-2"></i>Download Selected (1)';
+        } else {
+            downloadBtn.innerHTML = `<i class="fas fa-download mr-2"></i>Download Journey (${count})`;
+        }
+    }
 }
 
 async function viewTranscript(id) {
@@ -265,6 +378,70 @@ async function viewTranscript(id) {
         }
     } catch (error) {
         showError(`❌ Network error: ${error.message}`);
+    }
+}
+
+function handleDownloadClick() {
+    const selectedIds = Array.from(app.selectedTranscripts);
+    
+    if (selectedIds.length === 0) {
+        showError('Please select at least one transcript to download');
+        return;
+    }
+    
+    if (selectedIds.length === 1) {
+        // Single transcript download
+        downloadTranscript(selectedIds[0]);
+    } else {
+        // Multiple transcript download
+        downloadMultipleTranscripts(selectedIds);
+    }
+}
+
+async function downloadMultipleTranscripts(ids) {
+    console.log('Downloading multiple transcripts:', ids);
+    try {
+        showLoading('Preparing transcript journey...');
+        
+        const response = await fetch('/api/transcripts/download-multiple', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ ids: ids })
+        });
+        
+        if (response.ok) {
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            
+            // Get filename from response headers or create default
+            const contentDisposition = response.headers.get('Content-Disposition');
+            let filename = 'transcript-journey.txt';
+            if (contentDisposition) {
+                const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+                if (filenameMatch) {
+                    filename = filenameMatch[1];
+                }
+            }
+            
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            
+            showSuccess(`✅ Downloaded transcript journey with ${ids.length} transcripts`);
+        } else {
+            const error = await response.json();
+            showError(`❌ Download failed: ${error.error || 'Unknown error'}`);
+        }
+    } catch (error) {
+        showError(`❌ Network error: ${error.message}`);
+    } finally {
+        hideLoading();
     }
 }
 

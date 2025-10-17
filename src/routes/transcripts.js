@@ -145,6 +145,46 @@ class TranscriptRoutes {
       }
     });
 
+    // Download multiple transcripts as a single file
+    router.post('/download-multiple', async (req, res) => {
+      try {
+        const { ids } = req.body;
+        
+        if (!ids || !Array.isArray(ids) || ids.length === 0) {
+          return res.status(400).json({
+            success: false,
+            error: 'Invalid request',
+            message: 'Please provide an array of transcript IDs'
+          });
+        }
+        
+        if (ids.length > 50) {
+          return res.status(400).json({
+            success: false,
+            error: 'Too many transcripts',
+            message: 'Maximum 50 transcripts can be downloaded at once'
+          });
+        }
+        
+        const result = await this.transcriptService.downloadMultipleTranscripts(ids);
+        
+        // Set appropriate headers for file download
+        const filename = result.filename;
+        res.setHeader('Content-Type', 'text/plain');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Content-Length', Buffer.byteLength(result.content, 'utf8'));
+        
+        res.send(result.content);
+      } catch (error) {
+        console.error('Error downloading multiple transcripts:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to download transcripts',
+          message: error.message
+        });
+      }
+    });
+
     // Get specific transcript
     router.get('/:id', async (req, res) => {
       try {

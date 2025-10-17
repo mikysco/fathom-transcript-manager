@@ -415,6 +415,104 @@ class TranscriptService {
       throw error;
     }
   }
+
+  /**
+   * Download multiple transcripts as a single chronological journey file
+   */
+  async downloadMultipleTranscripts(ids) {
+    try {
+      // Fetch all transcripts
+      const transcripts = [];
+      for (const id of ids) {
+        const transcript = await this.getTranscript(id);
+        if (transcript) {
+          transcripts.push(transcript);
+        }
+      }
+
+      if (transcripts.length === 0) {
+        throw new Error('No valid transcripts found');
+      }
+
+      // Sort by date (oldest first for chronological journey)
+      transcripts.sort((a, b) => new Date(a.startTime) - new Date(b.startTime));
+
+      // Create filename
+      const oldestDate = new Date(transcripts[0].startTime).toISOString().split('T')[0];
+      const newestDate = new Date(transcripts[transcripts.length - 1].startTime).toISOString().split('T')[0];
+      const filename = `transcript-journey-${oldestDate}-to-${newestDate}.txt`;
+
+      // Build content
+      let content = `=== CHRONOLOGICAL TRANSCRIPT JOURNEY ===\n`;
+      content += `Start: ${oldestDate} | End: ${newestDate} | Total: ${transcripts.length} transcripts\n\n`;
+
+      for (let i = 0; i < transcripts.length; i++) {
+        const transcript = transcripts[i];
+        const date = new Date(transcript.startTime).toLocaleDateString();
+        const time = new Date(transcript.startTime).toLocaleTimeString();
+        
+        content += `=== TRANSCRIPT ${i + 1}: ${transcript.title || 'Untitled Meeting'} (${date} ${time}) ===\n`;
+        
+        // Format the transcript content
+        let transcriptContent = 'No transcript available';
+        if (transcript.transcript) {
+          try {
+            let transcriptData = transcript.transcript;
+            
+            // If it's a string, try to parse it
+            if (typeof transcriptData === 'string') {
+              transcriptData = JSON.parse(transcriptData);
+            }
+            
+            // Process the transcript data
+            if (typeof transcriptData === 'object' && transcriptData !== null) {
+              const entries = [];
+              
+              // Handle different transcript formats
+              if (Array.isArray(transcriptData)) {
+                entries.push(...transcriptData);
+              } else if (typeof transcriptData === 'object') {
+                // Handle object with numeric keys
+                const keys = Object.keys(transcriptData).sort((a, b) => parseInt(a) - parseInt(b));
+                for (const key of keys) {
+                  try {
+                    const entry = JSON.parse(transcriptData[key]);
+                    entries.push(entry);
+                  } catch (parseError) {
+                    // Skip invalid entries
+                    continue;
+                  }
+                }
+              }
+              
+              // Format entries
+              if (entries.length > 0) {
+                transcriptContent = entries.map(entry => {
+                  const speaker = entry.speaker?.display_name || entry.speaker || 'Unknown';
+                  const text = entry.text || entry.content || '';
+                  const timestamp = entry.timestamp || entry.time || '';
+                  return `${speaker} [${timestamp}]: ${text}`;
+                }).join('\n\n');
+              }
+            }
+          } catch (error) {
+            console.error('Error processing transcript:', error);
+            transcriptContent = 'Error processing transcript content';
+          }
+        }
+        
+        content += transcriptContent + '\n\n';
+      }
+
+      return {
+        filename,
+        content
+      };
+    } catch (error) {
+      console.error('Error creating transcript journey:', error);
+      throw error;
+    }
+  }
 }
 
 module.exports = TranscriptService;
