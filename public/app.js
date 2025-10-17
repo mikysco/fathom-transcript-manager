@@ -205,9 +205,16 @@ async function downloadTranscript(id) {
                     try {
                         let transcriptData = transcript.transcript;
                         
-                        // If it's a string, parse it first
+                        // If it's a string, try to parse it
                         if (typeof transcriptData === 'string') {
-                            transcriptData = JSON.parse(transcriptData);
+                            try {
+                                transcriptData = JSON.parse(transcriptData);
+                            } catch (parseError) {
+                                // If parsing fails, it might be a plain text transcript
+                                console.error('Failed to parse transcript as JSON:', parseError);
+                                formattedTranscript = transcriptData;
+                                return;
+                            }
                         }
 
                         // Now transcriptData should be an object or array
@@ -224,11 +231,28 @@ async function downloadTranscript(id) {
                                 return numA - numB;
                             });
                             
-                            // Extract all values from the object (each value is a JSON string)
+                            // Extract all values from the object
                             for (const key of keys) {
                                 try {
-                                    // Parse each entry (which is a JSON string)
-                                    const entry = JSON.parse(transcriptData[key]);
+                                    let entry;
+                                    
+                                    // Check if the value is already an object or needs parsing
+                                    if (typeof transcriptData[key] === 'string') {
+                                        // Try to parse as JSON
+                                        try {
+                                            entry = JSON.parse(transcriptData[key]);
+                                        } catch (e) {
+                                            // If it fails, skip malformed entries
+                                            console.warn(`Skipping malformed entry at key ${key}`);
+                                            continue;
+                                        }
+                                    } else if (typeof transcriptData[key] === 'object') {
+                                        // Already an object, use directly
+                                        entry = transcriptData[key];
+                                    } else {
+                                        continue;
+                                    }
+                                    
                                     entries.push(entry);
                                 } catch (parseError) {
                                     console.error('Error parsing individual entry:', parseError);
@@ -243,6 +267,8 @@ async function downloadTranscript(id) {
                                     const timestamp = entry.timestamp || '';
                                     return `${speaker} [${timestamp}]: ${text}`;
                                 }).join('\n\n');
+                            } else {
+                                formattedTranscript = 'No valid transcript entries found';
                             }
                         } else if (Array.isArray(transcriptData)) {
                             // Handle array of transcript entries
@@ -253,12 +279,13 @@ async function downloadTranscript(id) {
                                 return `${speaker} [${timestamp}]: ${text}`;
                             }).join('\n\n');
                         } else {
-                            // Fallback to raw text
-                            formattedTranscript = JSON.stringify(transcriptData, null, 2);
+                            // Fallback to string representation
+                            formattedTranscript = String(transcriptData);
                         }
                     } catch (error) {
                         console.error('Error parsing transcript:', error);
-                        formattedTranscript = 'Error formatting transcript: ' + error.message;
+                        console.error('Transcript data:', transcript.transcript);
+                        formattedTranscript = 'Error formatting transcript. Please check the console for details.';
                     }
                 }
 
