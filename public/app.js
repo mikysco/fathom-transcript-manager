@@ -220,16 +220,27 @@ async function downloadTranscript(id) {
                                 const jsonEntries = [];
                                 const jsonPattern = /\{[^}]*"speaker"[^}]*"text"[^}]*"timestamp"[^}]*\}/g;
                                 let match;
+                                let matchCount = 0;
+                                
+                                console.log('Starting regex extraction...');
+                                console.log('Transcript data length:', transcriptData.length);
+                                console.log('First 200 chars:', transcriptData.substring(0, 200));
                                 
                                 while ((match = jsonPattern.exec(transcriptData)) !== null) {
+                                    matchCount++;
+                                    console.log(`Found match ${matchCount}:`, match[0].substring(0, 100) + '...');
                                     try {
                                         const entry = JSON.parse(match[0]);
                                         jsonEntries.push(entry);
+                                        console.log(`Successfully parsed entry ${matchCount}`);
                                     } catch (e) {
                                         // If individual entry parsing fails, skip it
                                         console.warn('Skipping malformed entry:', match[0].substring(0, 100));
                                     }
                                 }
+                                
+                                console.log(`Total matches found: ${matchCount}`);
+                                console.log(`Successfully parsed entries: ${jsonEntries.length}`);
                                 
                                 if (jsonEntries.length > 0) {
                                     formattedTranscript = jsonEntries.map(entry => {
@@ -238,9 +249,12 @@ async function downloadTranscript(id) {
                                         const timestamp = entry.timestamp || '';
                                         return `${speaker} [${timestamp}]: ${text}`;
                                     }).join('\n\n');
+                                    console.log('Formatted transcript length:', formattedTranscript.length);
+                                    console.log('First 200 chars of formatted:', formattedTranscript.substring(0, 200));
                                     return;
                                 } else {
                                     // If regex extraction fails, show raw data
+                                    console.log('No entries could be parsed, showing raw data');
                                     formattedTranscript = transcriptData;
                                     return;
                                 }
