@@ -221,35 +221,58 @@ async function downloadTranscript(id) {
                                 // Try to manually extract entries using regex since JSON is corrupted
                                 try {
                                     console.log('Attempting manual extraction using regex...');
+                                    console.log('Full transcript data (first 1000 chars):', transcriptData.substring(0, 1000));
                                     
-                                    // Extract all the JSON string values using a simpler approach
-                                    // Pattern matches: "key": "value" where value is a JSON string
-                                    const entryPattern = /"(\d+)":\s*"([^"]*(?:\\.[^"]*)*)"/g;
+                                    // The data structure appears to be an array of JSON strings
+                                    // Let's try splitting by the pattern: },"{
                                     const entries = [];
-                                    let match;
                                     
-                                    while ((match = entryPattern.exec(transcriptData)) !== null) {
+                                    // First, remove the outer braces and try to split entries
+                                    let cleanData = transcriptData.trim();
+                                    if (cleanData.startsWith('{') && cleanData.endsWith('}')) {
+                                        cleanData = cleanData.substring(1, cleanData.length - 1);
+                                        console.log('Removed outer braces. New first 500 chars:', cleanData.substring(0, 500));
+                                    }
+                                    
+                                    // Try to split by the comma-quote pattern that separates entries
+                                    const rawEntries = cleanData.split(/","/);
+                                    console.log(`Found ${rawEntries.length} potential entries using split`);
+                                    
+                                    // Process each raw entry
+                                    for (let i = 0; i < rawEntries.length; i++) {
                                         try {
-                                            const key = match[1];
-                                            const entryStr = match[2];
+                                            let entryStr = rawEntries[i];
                                             
-                                            console.log(`Found entry ${key}, length: ${entryStr.length}`);
-                                            console.log(`Entry preview: ${entryStr.substring(0, 100)}...`);
+                                            // Clean up the entry string
+                                            // Remove leading quote if present
+                                            if (entryStr.startsWith('"')) {
+                                                entryStr = entryStr.substring(1);
+                                            }
+                                            // Remove trailing quote if present
+                                            if (entryStr.endsWith('"')) {
+                                                entryStr = entryStr.substring(0, entryStr.length - 1);
+                                            }
+                                            
+                                            console.log(`Processing entry ${i}, length: ${entryStr.length}`);
+                                            console.log(`Entry preview: ${entryStr.substring(0, 150)}...`);
                                             
                                             // Unescape the JSON string
                                             const unescapedStr = entryStr
                                                 .replace(/\\"/g, '"')
-                                                .replace(/\\\\/g, '\\');
+                                                .replace(/\\\\/g, '\\')
+                                                .replace(/\\n/g, '\n')
+                                                .replace(/\\r/g, '\r')
+                                                .replace(/\\t/g, '\t');
                                             
-                                            console.log(`Unescaped preview: ${unescapedStr.substring(0, 100)}...`);
+                                            console.log(`Unescaped preview: ${unescapedStr.substring(0, 150)}...`);
                                             
                                             const entry = JSON.parse(unescapedStr);
-                                            entries.push({ key: parseInt(key), entry });
+                                            entries.push({ key: i, entry });
                                             
-                                            console.log(`Successfully parsed entry ${key}:`, entry.speaker?.display_name, entry.text?.substring(0, 50));
+                                            console.log(`✓ Successfully parsed entry ${i}:`, entry.speaker?.display_name, entry.text?.substring(0, 50));
                                         } catch (e) {
-                                            console.warn(`Failed to parse entry ${match[1]}:`, e.message);
-                                            console.log(`Problematic entry: ${match[2].substring(0, 200)}...`);
+                                            console.warn(`✗ Failed to parse entry ${i}:`, e.message);
+                                            console.log(`Problematic entry (first 300 chars):`, rawEntries[i].substring(0, 300));
                                         }
                                     }
                                     
