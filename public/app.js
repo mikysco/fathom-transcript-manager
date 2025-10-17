@@ -192,9 +192,15 @@ async function searchTranscripts(type) {
             console.log('First result duration from API:', result.data[0]?.duration, 'type:', typeof result.data[0]?.duration);
             displayResults(result.data);
             
-            // Auto-fix durations in background if any are null
+            // Auto-fix durations in background if any are null or appear to be scheduled durations
             const hasNullDurations = result.data.some(item => item.duration === null);
-            if (hasNullDurations) {
+            const hasScheduledDurations = result.data.some(item => {
+                // Check if duration looks like a scheduled duration (common values: 15min=900s, 30min=1800s, 60min=3600s)
+                const duration = item.duration;
+                return duration && (duration === 900 || duration === 1800 || duration === 2700 || duration === 3600);
+            });
+            
+            if (hasNullDurations || hasScheduledDurations) {
                 console.log('🔧 Auto-fixing durations in background...');
                 fixDurationsInBackground();
             }
@@ -834,31 +840,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Load dashboard metrics on page load
     loadDashboard();
     
-    // Add global function to fix durations (for debugging)
-    window.fixDurations = async () => {
-        try {
-            console.log('🔧 Fixing durations...');
-            const response = await fetch('/api/sync/fix-durations', { method: 'POST' });
-            const result = await response.json();
-            console.log('Fix result:', result);
-            if (result.success) {
-                alert(`✅ ${result.message}`);
-                // Refresh current search if any
-                const currentSearch = document.querySelector('input[type="text"]:focus, input[type="email"]:focus');
-                if (currentSearch && currentSearch.value.trim()) {
-                    const searchType = currentSearch.id.replace('Input', '').replace('email', 'email').replace('domain', 'domain').replace('company', 'company');
-                    await searchTranscripts(searchType);
-                }
-            } else {
-                alert(`❌ Fix failed: ${result.error}`);
-            }
-        } catch (error) {
-            console.error('Fix error:', error);
-            alert(`❌ Fix error: ${error.message}`);
-        }
-    };
-    
-    console.log('💡 To fix durations, run: fixDurations()');
+    // Durations are now fixed automatically in the background
 });
 
 // Background duration fix function

@@ -154,17 +154,19 @@ class SyncRoutes {
         
         console.log('🔧 Starting duration fix for existing meetings...');
         
-        // Get meetings with null duration but valid start/end times
+        // Get meetings with null duration OR scheduled durations that need fixing
         const meetings = await db.all(`
-          SELECT id, title, start_time, end_time, duration
+          SELECT id, title, start_time, end_time, duration, transcript
           FROM meetings 
-          WHERE duration IS NULL 
-          AND start_time IS NOT NULL 
-          AND end_time IS NOT NULL
+          WHERE (
+            duration IS NULL 
+            OR duration IN (900, 1800, 2700, 3600)  -- Common scheduled durations: 15min, 30min, 45min, 60min
+          )
+          AND transcript IS NOT NULL
           ORDER BY start_time DESC
         `);
         
-        console.log(`📊 Found ${meetings.length} meetings with null duration`);
+        console.log(`📊 Found ${meetings.length} meetings with null or scheduled durations`);
         
         // Debug: Show sample meeting data
         if (meetings.length > 0) {
