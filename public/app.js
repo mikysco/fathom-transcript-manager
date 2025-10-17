@@ -290,16 +290,13 @@ async function downloadTranscript(id) {
                                         
                                         console.log(`Successfully extracted ${entries.length} entries`);
                                         console.log('First 200 chars of formatted:', formattedTranscript.substring(0, 200));
-                                        return;
                                     } else {
                                         console.log('No entries could be extracted');
                                         formattedTranscript = 'Error: Unable to extract transcript entries from corrupted data.';
-                                        return;
                                     }
                                 } catch (extractError) {
                                     console.error('Failed to extract entries:', extractError);
                                     formattedTranscript = 'Error: Unable to parse transcript data. The JSON format appears to be corrupted.';
-                                    return;
                                 }
                             }
                         }
