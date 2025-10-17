@@ -232,6 +232,11 @@ function showLoading(message) {
     `;
 }
 
+function hideLoading() {
+    // Loading is automatically hidden when results are displayed
+    // This function exists for compatibility but doesn't need to do anything
+}
+
 function showSuccess(message) {
     searchResults.innerHTML = `
         <div class="success">
