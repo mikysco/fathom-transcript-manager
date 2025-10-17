@@ -184,8 +184,10 @@ async function searchTranscripts(type) {
         const endpoint = `/api/transcripts/search/${type}`;
         const response = await fetch(`${endpoint}?q=${encodeURIComponent(query)}`);
         const result = await response.json();
+        console.log('Search API response:', result);
         
         if (response.ok && result.success) {
+            console.log('First result duration from API:', result.data[0]?.duration, 'type:', typeof result.data[0]?.duration);
             displayResults(result.data);
         } else {
             showError(`❌ Search failed: ${result.error || result.message}`);
@@ -286,7 +288,10 @@ function displayResults(results) {
                                 ${result.participants ? result.participants.length : 0}
                             </td>
                             <td class="px-4 py-3 text-sm text-gray-600">
-                                ${formatDuration(result.duration)}
+                                ${(() => {
+                                    console.log('Table rendering - result.duration:', result.duration, 'type:', typeof result.duration);
+                                    return formatDuration(result.duration);
+                                })()}
                             </td>
                             <td class="px-4 py-3 text-sm text-gray-600">
                                 <div class="flex space-x-2">
