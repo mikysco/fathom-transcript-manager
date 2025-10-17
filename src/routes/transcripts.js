@@ -157,6 +157,25 @@ class TranscriptRoutes {
       }
     });
 
+    // Debug endpoint to see all meetings with company name variations
+    router.get('/debug/company/:company', async (req, res) => {
+      try {
+        const { company } = req.params;
+        const debugInfo = await this.transcriptService.debugCompanySearch(company);
+        res.json({
+          success: true,
+          data: debugInfo
+        });
+      } catch (error) {
+        console.error('Error debugging company search:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to debug company search',
+          message: error.message
+        });
+      }
+    });
+
     return router;
   }
 }

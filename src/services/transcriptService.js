@@ -200,18 +200,26 @@ class TranscriptService {
         LEFT JOIN meeting_participants mp ON m.id = mp.meeting_id
         WHERE (
           m.title ILIKE $1 OR 
-          mp.name ILIKE $2 OR 
-          mp.email ILIKE $3
+          m.title ILIKE $2 OR 
+          m.title ILIKE $3 OR
+          mp.name ILIKE $4 OR 
+          mp.email ILIKE $5 OR
+          mp.domain ILIKE $6
         )
         GROUP BY m.id 
         ORDER BY m.start_time DESC
       `;
 
+      // Create multiple search variations to catch more matches
       const searchTerm = `%${companyName}%`;
-      let finalQuery = query;
-      const params = [searchTerm, searchTerm, searchTerm];
+      const searchTermLower = `%${companyName.toLowerCase()}%`;
+      const searchTermUpper = `%${companyName.toUpperCase()}%`;
       
-      if (options.limit) {
+      let finalQuery = query;
+      const params = [searchTerm, searchTermLower, searchTermUpper, searchTerm, searchTerm, searchTerm];
+      
+      // Only apply limit if explicitly requested, default to no limit for comprehensive search
+      if (options.limit && options.limit > 0) {
         finalQuery += ` LIMIT $${params.length + 1}`;
         params.push(options.limit);
       }
@@ -226,7 +234,7 @@ class TranscriptService {
         duration: row.duration,
         transcript: row.transcript,
         summary: row.summary,
-        participants: row.participants ? row.participants.split(',') : []
+        participants: row.participants ? row.participants.split(', ') : []
       }));
     } catch (error) {
       console.error('Error searching by company:', error);
@@ -294,6 +302,53 @@ class TranscriptService {
       };
     } catch (error) {
       console.error('Error fetching transcript:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Debug company search to see all matching meetings and variations
+   */
+  async debugCompanySearch(companyName) {
+    try {
+      // Get all meetings that might match the company name
+      const allMeetingsQuery = `
+        SELECT DISTINCT 
+          m.id,
+          m.title,
+          m.start_time,
+          STRING_AGG(DISTINCT CONCAT(mp.name, ' (', mp.email, ')'), ', ') as participants
+        FROM meetings m
+        LEFT JOIN meeting_participants mp ON m.id = mp.meeting_id
+        GROUP BY m.id, m.title, m.start_time
+        ORDER BY m.start_time DESC
+        LIMIT 50
+      `;
+
+      const allMeetings = await this.db.all(allMeetingsQuery);
+
+      // Filter meetings that might contain the company name (case-insensitive)
+      const searchTerm = companyName.toLowerCase();
+      const potentialMatches = allMeetings.filter(meeting => {
+        const titleMatch = meeting.title?.toLowerCase().includes(searchTerm);
+        const participantMatch = meeting.participants?.toLowerCase().includes(searchTerm);
+        return titleMatch || participantMatch;
+      });
+
+      // Also get exact matches using the current search logic
+      const exactMatches = await this.searchByCompany(companyName, { limit: 100 });
+
+      return {
+        searchTerm: companyName,
+        totalMeetingsInDB: allMeetings.length,
+        potentialMatches: potentialMatches.length,
+        exactMatches: exactMatches.length,
+        allMeetings: allMeetings.slice(0, 10), // First 10 for debugging
+        potentialMatchesDetails: potentialMatches,
+        exactMatchesDetails: exactMatches
+      };
+    } catch (error) {
+      console.error('Error debugging company search:', error);
       throw error;
     }
   }
