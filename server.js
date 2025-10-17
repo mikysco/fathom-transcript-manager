@@ -133,6 +133,17 @@ class Server {
         if (process.env.NODE_ENV !== 'production') {
           console.log(`🔧 Development mode - API available at http://localhost:${this.port}/api`);
         }
+
+        // Kick off an incremental sync on startup (non-blocking)
+        (async () => {
+          try {
+            console.log('⏳ Running initial incremental sync on startup...');
+            const result = await this.transcriptService.syncMeetings({ incremental: true });
+            console.log('✅ Initial incremental sync complete');
+          } catch (err) {
+            console.error('❌ Initial incremental sync failed:', err.message);
+          }
+        })();
       });
     } catch (error) {
       console.error('Failed to start server:', error);
