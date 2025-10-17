@@ -43,6 +43,12 @@ class Server {
   }
 
   setupMiddleware() {
+    // Trust proxy - Required for Railway and other hosting platforms
+    // This allows express-rate-limit to correctly identify users behind proxies
+    if (process.env.NODE_ENV === 'production') {
+      this.app.set('trust proxy', 1);
+    }
+    
     // Security middleware
     this.app.use(helmet());
     
