@@ -150,8 +150,8 @@ function displayResults(results) {
                 ${result.summary || 'No summary available'}
             </div>
             <div class="transcript-actions">
-                <button onclick="viewTranscript(${result.id})" class="btn btn-secondary">View Full Transcript</button>
-                <button onclick="downloadTranscript(${result.id})" class="btn btn-primary">Download</button>
+                <button class="btn btn-secondary view-transcript-btn" data-id="${result.id}">View Full Transcript</button>
+                <button class="btn btn-primary download-transcript-btn" data-id="${result.id}">Download</button>
             </div>
         </div>
     `).join('');
@@ -218,7 +218,7 @@ function showTranscriptModal(transcript) {
         <div class="modal-content">
             <div class="modal-header">
                 <h2>${transcript.title || 'Untitled Meeting'}</h2>
-                <button onclick="closeModal()" class="close-btn">&times;</button>
+                <button class="close-btn" id="closeModalBtn">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="transcript-text">${transcript.transcript || 'No transcript available'}</div>
@@ -236,9 +236,27 @@ function closeModal() {
     }
 }
 
-// Close modal when clicking outside
+// Event delegation for dynamically created buttons
 document.addEventListener('click', (e) => {
+    // Close modal when clicking outside
     if (e.target.classList.contains('transcript-modal')) {
+        closeModal();
+    }
+    
+    // Handle view transcript button
+    if (e.target.classList.contains('view-transcript-btn')) {
+        const id = parseInt(e.target.dataset.id);
+        viewTranscript(id);
+    }
+    
+    // Handle download transcript button
+    if (e.target.classList.contains('download-transcript-btn')) {
+        const id = parseInt(e.target.dataset.id);
+        downloadTranscript(id);
+    }
+    
+    // Handle close modal button
+    if (e.target.id === 'closeModalBtn') {
         closeModal();
     }
 });
