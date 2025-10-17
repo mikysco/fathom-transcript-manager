@@ -190,21 +190,53 @@ async function viewTranscript(id) {
 
 async function downloadTranscript(id) {
     try {
-        const response = await fetch(`/api/transcripts/${id}/download`);
+        // Fetch the transcript data from the API
+        const response = await fetch(`/api/transcripts/${id}`);
         
         if (response.ok) {
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `transcript-${id}.txt`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
+            const result = await response.json();
+            
+            if (result.success && result.data) {
+                const transcript = result.data;
+                
+                // Format the transcript data as text
+                const content = `
+FATHOM TRANSCRIPT
+================
+
+Title: ${transcript.title || 'Untitled Meeting'}
+Date: ${transcript.startTime ? new Date(transcript.startTime).toLocaleString() : 'Unknown'}
+Duration: ${transcript.duration ? Math.round(transcript.duration / 60) + ' minutes' : 'Unknown'}
+Participants: ${transcript.participants ? transcript.participants.join(', ') : 'None'}
+
+${transcript.recordingUrl ? 'Recording URL: ' + transcript.recordingUrl + '\n' : ''}
+SUMMARY
+-------
+${transcript.summary || 'No summary available'}
+
+TRANSCRIPT
+----------
+${transcript.transcript || 'No transcript available'}
+`.trim();
+                
+                // Create and download the file
+                const blob = new Blob([content], { type: 'text/plain' });
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `transcript-${transcript.title?.replace(/[^a-z0-9]/gi, '_') || id}-${new Date().toISOString().split('T')[0]}.txt`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+                showSuccess('✅ Transcript downloaded successfully!');
+            } else {
+                showError(`❌ Download failed: ${result.message || 'Unknown error'}`);
+            }
         } else {
             const error = await response.json();
-            showError(`❌ Download failed: ${error.error}`);
+            showError(`❌ Download failed: ${error.error || error.message}`);
         }
     } catch (error) {
         showError(`❌ Network error: ${error.message}`);
