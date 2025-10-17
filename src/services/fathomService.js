@@ -163,7 +163,8 @@ class FathomService {
         
         hasMore = (response.items?.length || 0) === limit;
         offset += limit;
-        
+      }
+      
       return allMeetings;
     } catch (error) {
       console.error('Error syncing meetings:', error);
