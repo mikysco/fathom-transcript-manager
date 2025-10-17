@@ -258,9 +258,12 @@ async function viewTranscript(id) {
 }
 
 async function downloadTranscript(id) {
+    console.log('downloadTranscript called with ID:', id);
     try {
         // Fetch the transcript data from the API
+        console.log('Fetching transcript from API...');
         const response = await fetch(`/api/transcripts/${id}`);
+        console.log('API response status:', response.status);
         
         if (response.ok) {
             const result = await response.json();
@@ -549,7 +552,9 @@ document.addEventListener('click', (e) => {
     
     // Handle download transcript button
     if (e.target.classList.contains('download-transcript-btn')) {
+        console.log('Download button clicked!');
         const id = parseInt(e.target.dataset.id);
+        console.log('Transcript ID:', id);
         downloadTranscript(id);
     }
     
