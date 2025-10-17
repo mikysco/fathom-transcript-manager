@@ -98,6 +98,24 @@ class TranscriptRoutes {
       }
     });
 
+    // Dashboard metrics endpoint
+    router.get('/dashboard', async (req, res) => {
+      try {
+        const metrics = await this.transcriptService.getDashboardMetrics();
+        res.json({
+          success: true,
+          data: metrics
+        });
+      } catch (error) {
+        console.error('Error fetching dashboard metrics:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to fetch dashboard metrics',
+          message: error.message
+        });
+      }
+    });
+
     // Get specific transcript
     router.get('/:id', async (req, res) => {
       try {
@@ -171,24 +189,6 @@ class TranscriptRoutes {
         res.status(500).json({
           success: false,
           error: 'Failed to debug company search',
-          message: error.message
-        });
-      }
-    });
-
-    // Dashboard metrics endpoint
-    router.get('/dashboard', async (req, res) => {
-      try {
-        const metrics = await this.transcriptService.getDashboardMetrics();
-        res.json({
-          success: true,
-          data: metrics
-        });
-      } catch (error) {
-        console.error('Error fetching dashboard metrics:', error);
-        res.status(500).json({
-          success: false,
-          error: 'Failed to fetch dashboard metrics',
           message: error.message
         });
       }
