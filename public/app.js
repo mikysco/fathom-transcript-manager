@@ -5,7 +5,8 @@ const app = {
     selectedTranscripts: new Set(),
     currentResults: [],
     lastSearchType: null,
-    lastSearchQuery: null
+    lastSearchQuery: null,
+    isFixingDurations: false
 };
 
 // DOM Elements
@@ -199,16 +200,19 @@ async function searchTranscripts(type) {
             displayResults(result.data);
             
             // Auto-fix durations in background if any are null or appear to be scheduled durations
-            const hasNullDurations = result.data.some(item => item.duration === null);
-            const hasScheduledDurations = result.data.some(item => {
-                // Check if duration looks like a scheduled duration (common values: 15min=900s, 30min=1800s, 60min=3600s)
-                const duration = item.duration;
-                return duration && (duration === 900 || duration === 1800 || duration === 2700 || duration === 3600);
-            });
-            
-            if (hasNullDurations || hasScheduledDurations) {
-                console.log('🔧 Auto-fixing durations in background...');
-                fixDurationsInBackground();
+            // But only if we're not already fixing durations to prevent infinite loops
+            if (!app.isFixingDurations) {
+                const hasNullDurations = result.data.some(item => item.duration === null);
+                const hasScheduledDurations = result.data.some(item => {
+                    // Check if duration looks like a scheduled duration (common values: 15min=900s, 30min=1800s, 60min=3600s)
+                    const duration = item.duration;
+                    return duration && (duration === 900 || duration === 1800 || duration === 2700 || duration === 3600);
+                });
+                
+                if (hasNullDurations || hasScheduledDurations) {
+                    console.log('🔧 Auto-fixing durations in background...');
+                    fixDurationsInBackground();
+                }
             }
         } else {
             showError(`❌ Search failed: ${result.error || result.message}`);
@@ -851,6 +855,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Background duration fix function
 async function fixDurationsInBackground() {
+    if (app.isFixingDurations) {
+        console.log('⚠️ Duration fix already in progress, skipping...');
+        return;
+    }
+    
+    app.isFixingDurations = true;
+    
     try {
         const response = await fetch('/api/sync/fix-durations', { method: 'POST' });
         const result = await response.json();
@@ -868,5 +879,7 @@ async function fixDurationsInBackground() {
         }
     } catch (error) {
         console.log('⚠️ Background duration fix failed:', error.message);
+    } finally {
+        app.isFixingDurations = false;
     }
 }

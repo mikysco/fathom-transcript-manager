@@ -175,6 +175,13 @@ class SyncRoutes {
           console.log(`   Start: ${sample.start_time}`);
           console.log(`   End: ${sample.end_time}`);
           console.log(`   Duration: ${sample.duration}`);
+          
+          // Debug transcript extraction
+          if (sample.transcript) {
+            const transcriptDuration = this.extractDurationFromTranscript(sample.transcript);
+            console.log(`   Transcript duration extracted: ${transcriptDuration} seconds`);
+            console.log(`   Transcript preview: ${sample.transcript.substring(0, 200)}...`);
+          }
         }
         
         if (meetings.length === 0) {
