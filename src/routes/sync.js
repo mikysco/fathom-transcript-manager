@@ -117,6 +117,36 @@ class SyncRoutes {
       }
     });
 
+    // Test endpoint to check database state
+    router.get('/test-db', async (req, res) => {
+      try {
+        const db = this.transcriptService.db;
+        
+        // Get a sample of meetings to check their data
+        const meetings = await db.all(`
+          SELECT id, title, start_time, end_time, duration
+          FROM meetings 
+          ORDER BY start_time DESC
+          LIMIT 5
+        `);
+        
+        res.json({
+          success: true,
+          data: {
+            totalMeetings: meetings.length,
+            meetings: meetings
+          }
+        });
+      } catch (error) {
+        console.error('Error testing database:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to test database',
+          message: error.message
+        });
+      }
+    });
+
     // Fix durations for existing meetings
     router.post('/fix-durations', async (req, res) => {
       try {
@@ -135,6 +165,15 @@ class SyncRoutes {
         `);
         
         console.log(`📊 Found ${meetings.length} meetings with null duration`);
+        
+        // Debug: Show sample meeting data
+        if (meetings.length > 0) {
+          const sample = meetings[0];
+          console.log(`🔍 Sample meeting: "${sample.title}"`);
+          console.log(`   Start: ${sample.start_time}`);
+          console.log(`   End: ${sample.end_time}`);
+          console.log(`   Duration: ${sample.duration}`);
+        }
         
         if (meetings.length === 0) {
           return res.json({
