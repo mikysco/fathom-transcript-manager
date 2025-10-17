@@ -203,81 +203,62 @@ async function downloadTranscript(id) {
                 let formattedTranscript = 'No transcript available';
                 if (transcript.transcript) {
                     try {
-                        console.log('Raw transcript data type:', typeof transcript.transcript);
-                        console.log('Raw transcript data sample:', JSON.stringify(transcript.transcript).substring(0, 200) + '...');
+                        let transcriptData = transcript.transcript;
                         
-                        // Handle the JSON string format from Fathom
-                        let transcriptData;
-                        if (typeof transcript.transcript === 'string') {
-                            // Try to parse the JSON string
-                            transcriptData = JSON.parse(transcript.transcript);
-                        } else {
-                            transcriptData = transcript.transcript;
+                        // If it's a string, parse it first
+                        if (typeof transcriptData === 'string') {
+                            transcriptData = JSON.parse(transcriptData);
                         }
 
-                        console.log('Parsed transcript data type:', typeof transcriptData);
-                        console.log('Parsed transcript data keys:', Object.keys(transcriptData || {}).slice(0, 5));
-
-                        // Handle object with string keys (the actual format from Fathom)
+                        // Now transcriptData should be an object or array
+                        // The format from Fathom is an object where keys are array indices
+                        // and values are JSON strings of individual transcript entries
+                        
                         if (typeof transcriptData === 'object' && !Array.isArray(transcriptData)) {
                             const entries = [];
                             
+                            // Get all keys and sort them numerically (they're array indices as strings)
+                            const keys = Object.keys(transcriptData).sort((a, b) => {
+                                const numA = parseInt(a);
+                                const numB = parseInt(b);
+                                return numA - numB;
+                            });
+                            
                             // Extract all values from the object (each value is a JSON string)
-                            for (const key in transcriptData) {
-                                if (transcriptData.hasOwnProperty(key)) {
-                                    try {
-                                        // Parse each entry (which is a JSON string)
-                                        const entry = JSON.parse(transcriptData[key]);
-                                        entries.push(entry);
-                                    } catch (parseError) {
-                                        console.error('Error parsing individual entry:', parseError);
-                                        console.error('Failed entry:', transcriptData[key]);
-                                    }
+                            for (const key of keys) {
+                                try {
+                                    // Parse each entry (which is a JSON string)
+                                    const entry = JSON.parse(transcriptData[key]);
+                                    entries.push(entry);
+                                } catch (parseError) {
+                                    console.error('Error parsing individual entry:', parseError);
                                 }
                             }
                             
-                            console.log('Total entries parsed:', entries.length);
-                            
-                            // Sort by timestamp if available
-                            entries.sort((a, b) => {
-                                if (a.timestamp && b.timestamp) {
-                                    return a.timestamp.localeCompare(b.timestamp);
-                                }
-                                return 0;
-                            });
-                            
                             // Format as readable conversation
-                            formattedTranscript = entries.map(entry => {
-                                const speaker = entry.speaker?.display_name || 'Unknown Speaker';
-                                const text = entry.text || '';
-                                const timestamp = entry.timestamp || '';
-                                return `[${timestamp}] ${speaker}: ${text}`;
-                            }).join('\n');
+                            if (entries.length > 0) {
+                                formattedTranscript = entries.map(entry => {
+                                    const speaker = entry.speaker?.display_name || 'Unknown Speaker';
+                                    const text = entry.text || '';
+                                    const timestamp = entry.timestamp || '';
+                                    return `${speaker} [${timestamp}]: ${text}`;
+                                }).join('\n\n');
+                            }
                         } else if (Array.isArray(transcriptData)) {
                             // Handle array of transcript entries
                             formattedTranscript = transcriptData.map(entry => {
                                 const speaker = entry.speaker?.display_name || 'Unknown Speaker';
                                 const text = entry.text || '';
                                 const timestamp = entry.timestamp || '';
-                                return `[${timestamp}] ${speaker}: ${text}`;
-                            }).join('\n');
-                        } else if (typeof transcriptData === 'object' && transcriptData.speaker) {
-                            // Handle single entry
-                            const speaker = transcriptData.speaker?.display_name || 'Unknown Speaker';
-                            const text = transcriptData.text || '';
-                            const timestamp = transcriptData.timestamp || '';
-                            formattedTranscript = `[${timestamp}] ${speaker}: ${text}`;
+                                return `${speaker} [${timestamp}]: ${text}`;
+                            }).join('\n\n');
                         } else {
                             // Fallback to raw text
-                            console.log('Using fallback - raw transcript data');
-                            formattedTranscript = transcript.transcript;
+                            formattedTranscript = JSON.stringify(transcriptData, null, 2);
                         }
-                        
-                        console.log('Final formatted transcript length:', formattedTranscript.length);
-                        console.log('First 200 chars of formatted transcript:', formattedTranscript.substring(0, 200));
                     } catch (error) {
                         console.error('Error parsing transcript:', error);
-                        formattedTranscript = transcript.transcript; // Fallback to raw text
+                        formattedTranscript = 'Error formatting transcript: ' + error.message;
                     }
                 }
 
