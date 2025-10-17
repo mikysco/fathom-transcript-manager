@@ -163,12 +163,21 @@ class FathomService {
       }
     }
     
+    // Calculate duration from recording times (more reliable than scheduled times)
+    let calculatedDuration = duration;
+    if (meeting.recording_start_time && meeting.recording_end_time) {
+      const start = new Date(meeting.recording_start_time);
+      const end = new Date(meeting.recording_end_time);
+      calculatedDuration = Math.floor((end - start) / 1000); // Convert to seconds
+      console.log(`Calculated duration from recording times for "${meeting.title || 'Untitled'}": ${calculatedDuration} seconds`);
+    }
+    
     return {
       fathomId: meeting.id || meeting.url,
       title: meeting.title || meeting.meeting_title,
       startTime: meeting.scheduled_start_time || meeting.recording_start_time,
       endTime: meeting.scheduled_end_time || meeting.recording_end_time,
-      duration: duration,
+      duration: calculatedDuration,
       recordingUrl: meeting.url,
       transcript: meeting.transcript || '',
       summary: meeting.default_summary?.markdown_formatted || '',

@@ -147,57 +147,6 @@ class SyncRoutes {
       }
     });
 
-    // Debug endpoint to test transcript duration extraction
-    router.get('/debug-transcript/:id', async (req, res) => {
-      try {
-        const { id } = req.params;
-        const db = this.transcriptService.db;
-        
-        const meeting = await db.get(`
-          SELECT id, title, duration, transcript
-          FROM meetings 
-          WHERE id = $1
-        `, [id]);
-        
-        if (!meeting) {
-          return res.status(404).json({
-            success: false,
-            error: 'Meeting not found'
-          });
-        }
-        
-        let transcriptDuration = 0;
-        if (meeting.transcript) {
-          transcriptDuration = this.extractDurationFromTranscript(meeting.transcript);
-        }
-        
-        res.json({
-          success: true,
-          data: {
-            meeting: {
-              id: meeting.id,
-              title: meeting.title,
-              currentDuration: meeting.duration,
-              extractedDuration: transcriptDuration
-            },
-            transcript: {
-              length: meeting.transcript?.length || 0,
-              preview: meeting.transcript?.substring(0, 500) || 'No transcript',
-              durationExtracted: transcriptDuration
-            }
-          }
-        });
-        
-      } catch (error) {
-        console.error('Error debugging transcript:', error);
-        res.status(500).json({
-          success: false,
-          error: 'Failed to debug transcript',
-          message: error.message
-        });
-      }
-    });
-
     // Fix durations for existing meetings
     router.post('/fix-durations', async (req, res) => {
       try {
@@ -250,21 +199,21 @@ class SyncRoutes {
             let durationSeconds = 0;
             let method = '';
             
-            // Method 1: Extract from transcript timestamps (PRIORITY - actual duration)
-            if (meeting.transcript) {
-              const transcriptDuration = this.extractDurationFromTranscript(meeting.transcript);
-              if (transcriptDuration > 0) {
-                durationSeconds = transcriptDuration;
-                method = 'transcript timestamps (actual)';
-              }
-            }
-            
-            // Method 2: Calculate from start/end times (fallback - scheduled duration)
-            if (durationSeconds <= 0 && meeting.start_time && meeting.end_time) {
+            // Method 1: Calculate from recording times (BEST - actual recording duration)
+            if (meeting.start_time && meeting.end_time) {
               const start = new Date(meeting.start_time);
               const end = new Date(meeting.end_time);
               durationSeconds = Math.floor((end - start) / 1000);
-              method = 'start/end times (scheduled)';
+              method = 'recording times (actual)';
+            }
+            
+            // Method 2: Extract from transcript timestamps (fallback)
+            if (durationSeconds <= 0 && meeting.transcript) {
+              const transcriptDuration = this.extractDurationFromTranscript(meeting.transcript);
+              if (transcriptDuration > 0) {
+                durationSeconds = transcriptDuration;
+                method = 'transcript timestamps';
+              }
             }
             
             if (durationSeconds > 0) {
