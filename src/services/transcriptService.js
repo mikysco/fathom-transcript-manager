@@ -453,39 +453,88 @@ class TranscriptService {
         
         content += `=== TRANSCRIPT ${i + 1}: ${transcript.title || 'Untitled Meeting'} (${date} ${time}) ===\n`;
         
-        // Format the transcript content
+        // Format the transcript content using the same robust parsing as individual downloads
         let transcriptContent = 'No transcript available';
         if (transcript.transcript) {
           try {
             let transcriptData = transcript.transcript;
+            let transcriptProcessed = false;
             
             // If it's a string, try to parse it
             if (typeof transcriptData === 'string') {
-              transcriptData = JSON.parse(transcriptData);
+              try {
+                transcriptData = JSON.parse(transcriptData);
+              } catch (parseError) {
+                console.log('Failed to parse transcript as JSON, attempting manual extraction...');
+                
+                // Manual extraction using the same logic as individual downloads
+                try {
+                  let cleanData = transcriptData.trim();
+                  if (cleanData.startsWith('{') && cleanData.endsWith('}')) {
+                    cleanData = cleanData.substring(1, cleanData.length - 1);
+                  }
+                  
+                  const rawEntries = cleanData.split(/","/);
+                  const entries = [];
+                  
+                  for (let i = 0; i < rawEntries.length; i++) {
+                    try {
+                      let entryStr = rawEntries[i];
+                      
+                      if (entryStr.startsWith('"')) {
+                        entryStr = entryStr.substring(1);
+                      }
+                      if (entryStr.endsWith('"')) {
+                        entryStr = entryStr.substring(0, entryStr.length - 1);
+                      }
+                      
+                      const unescapedStr = entryStr
+                        .replace(/\\"/g, '"')
+                        .replace(/\\\\/g, '\\')
+                        .replace(/\\n/g, '\n')
+                        .replace(/\\r/g, '\r')
+                        .replace(/\\t/g, '\t');
+                      
+                      const entry = JSON.parse(unescapedStr);
+                      entries.push(entry);
+                    } catch (entryError) {
+                      continue;
+                    }
+                  }
+                  
+                  if (entries.length > 0) {
+                    transcriptContent = entries.map(entry => {
+                      const speaker = entry.speaker?.display_name || entry.speaker || 'Unknown';
+                      const text = entry.text || entry.content || '';
+                      const timestamp = entry.timestamp || entry.time || '';
+                      return `${speaker} [${timestamp}]: ${text}`;
+                    }).join('\n\n');
+                    transcriptProcessed = true;
+                  }
+                } catch (manualError) {
+                  console.error('Manual extraction failed:', manualError);
+                }
+              }
             }
             
-            // Process the transcript data
-            if (typeof transcriptData === 'object' && transcriptData !== null) {
+            // If manual extraction didn't work, try the original object parsing
+            if (!transcriptProcessed && typeof transcriptData === 'object' && transcriptData !== null) {
               const entries = [];
               
-              // Handle different transcript formats
               if (Array.isArray(transcriptData)) {
                 entries.push(...transcriptData);
               } else if (typeof transcriptData === 'object') {
-                // Handle object with numeric keys
                 const keys = Object.keys(transcriptData).sort((a, b) => parseInt(a) - parseInt(b));
                 for (const key of keys) {
                   try {
                     const entry = JSON.parse(transcriptData[key]);
                     entries.push(entry);
                   } catch (parseError) {
-                    // Skip invalid entries
                     continue;
                   }
                 }
               }
               
-              // Format entries
               if (entries.length > 0) {
                 transcriptContent = entries.map(entry => {
                   const speaker = entry.speaker?.display_name || entry.speaker || 'Unknown';
