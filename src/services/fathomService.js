@@ -177,7 +177,28 @@ class FathomService {
       const maxRequestsPerMinute = 60;
       const delayBetweenRequests = 1000; // 1 second between requests to stay under rate limit
 
-      console.log('Starting sync of all meetings from Fathom...');
+      // Check if this is an incremental sync
+      const isIncremental = options.incremental !== false; // Default to true
+      let lastSyncTime = null;
+      
+      if (isIncremental) {
+        try {
+          const syncStatus = await db.getSyncStatus();
+          lastSyncTime = syncStatus?.last_sync_time;
+          
+          if (lastSyncTime) {
+            // Add 1 hour buffer to ensure we don't miss any meetings
+            const bufferTime = new Date(lastSyncTime.getTime() - (60 * 60 * 1000));
+            console.log(`Incremental sync: Fetching meetings created after ${bufferTime.toISOString()}`);
+          } else {
+            console.log('No previous sync found, performing full sync...');
+          }
+        } catch (error) {
+          console.log('Could not get last sync time, performing full sync...', error.message);
+        }
+      } else {
+        console.log('Full sync requested, fetching all meetings...');
+      }
 
       while (hasMore) {
         // Check rate limit
@@ -195,6 +216,12 @@ class FathomService {
         // Add cursor for pagination
         if (cursor) {
           params.cursor = cursor;
+        }
+
+        // Add created_after filter for incremental sync
+        if (isIncremental && lastSyncTime) {
+          const bufferTime = new Date(lastSyncTime.getTime() - (60 * 60 * 1000));
+          params.created_after = bufferTime.toISOString();
         }
 
         console.log(`Fetching meetings (request #${requestCount + 1})...`);
@@ -218,7 +245,8 @@ class FathomService {
         }
       }
 
-      console.log(`Sync complete: Total meetings fetched from Fathom: ${allMeetings.length}`);
+      const syncType = isIncremental && lastSyncTime ? 'incremental' : 'full';
+      console.log(`${syncType.charAt(0).toUpperCase() + syncType.slice(1)} sync complete: Total meetings fetched from Fathom: ${allMeetings.length}`);
       return allMeetings;
     } catch (error) {
       console.error('Error syncing meetings:', error);

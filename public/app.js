@@ -3,6 +3,7 @@
 // DOM Elements
 const testApiBtn = document.getElementById('testApiBtn');
 const syncDataBtn = document.getElementById('syncDataBtn');
+const fullSyncBtn = document.getElementById('fullSyncBtn');
 const searchResults = document.getElementById('searchResults');
 const emailSearchBtn = document.getElementById('emailSearchBtn');
 const domainSearchBtn = document.getElementById('domainSearchBtn');
@@ -19,7 +20,11 @@ if (testApiBtn) {
 }
 
 if (syncDataBtn) {
-    syncDataBtn.addEventListener('click', syncData);
+    syncDataBtn.addEventListener('click', () => syncData('incremental'));
+}
+
+if (fullSyncBtn) {
+    fullSyncBtn.addEventListener('click', () => syncData('full'));
 }
 
 if (emailSearchBtn) {
@@ -114,11 +119,14 @@ async function testFathomApi() {
     }
 }
 
-async function syncData() {
+async function syncData(syncType = 'incremental') {
     try {
-        showLoading('Syncing data from Fathom...');
+        const isIncremental = syncType === 'incremental';
+        const loadingMessage = isIncremental ? 'Syncing new data from Fathom...' : 'Performing full sync from Fathom...';
+        showLoading(loadingMessage);
         
-        const response = await fetch('/api/sync/meetings', {
+        const endpoint = isIncremental ? '/api/sync/meetings' : '/api/sync/meetings/full';
+        const response = await fetch(endpoint, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -128,7 +136,8 @@ async function syncData() {
         const result = await response.json();
         
         if (response.ok) {
-            showSuccess(`✅ Sync complete: ${result.synced} meetings processed`);
+            const syncTypeText = isIncremental ? 'Incremental sync' : 'Full sync';
+            showSuccess(`✅ ${syncTypeText} complete: ${result.data?.synced || 0} meetings processed`);
             // Refresh dashboard after successful sync
             await loadDashboard();
         } else {
@@ -136,6 +145,8 @@ async function syncData() {
         }
     } catch (error) {
         showError(`❌ Network error: ${error.message}`);
+    } finally {
+        hideLoading();
     }
 }
 

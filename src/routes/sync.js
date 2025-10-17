@@ -10,17 +10,40 @@ class SyncRoutes {
    * Get all routes
    */
   getRoutes() {
-    // Sync meetings from Fathom
+    // Sync meetings from Fathom (incremental by default)
     router.post('/meetings', async (req, res) => {
       try {
-        const options = req.body || {};
+        const options = { incremental: true, ...req.body };
         
-        console.log('Starting meeting sync...');
+        console.log('Starting incremental meeting sync...');
         const result = await this.transcriptService.syncMeetings(options);
         
         res.json({
           success: true,
           message: 'Meetings synced successfully',
+          data: result
+        });
+      } catch (error) {
+        console.error('Error syncing meetings:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to sync meetings',
+          message: error.message
+        });
+      }
+    });
+
+    // Full sync meetings from Fathom (all meetings)
+    router.post('/meetings/full', async (req, res) => {
+      try {
+        const options = { incremental: false, ...req.body };
+        
+        console.log('Starting full meeting sync...');
+        const result = await this.transcriptService.syncMeetings(options);
+        
+        res.json({
+          success: true,
+          message: 'Full sync completed successfully',
           data: result
         });
       } catch (error) {
