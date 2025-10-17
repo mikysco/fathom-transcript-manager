@@ -123,6 +123,11 @@ class FathomService {
     const participants = meeting.calendar_invitees || [];
     const domains = [...new Set(participants.map(p => p.email?.split('@')[1]).filter(Boolean))];
     
+    // Debug: Log domains for this meeting
+    if (domains.length > 0) {
+      console.log(`Meeting "${meeting.title || 'Untitled'}": domains found:`, domains);
+    }
+    
     return {
       fathomId: meeting.id || meeting.url,
       title: meeting.title || meeting.meeting_title,
@@ -152,19 +157,25 @@ class FathomService {
       const limit = 100;
       let hasMore = true;
 
+      console.log('Starting sync of all meetings from Fathom...');
+
       while (hasMore) {
         const response = await this.getMeetings({ 
           limit, 
           offset, 
           ...options 
         });
+
+        const newMeetings = response.items || [];
+        allMeetings = allMeetings.concat(newMeetings);
         
-        allMeetings = allMeetings.concat(response.items || []);
-        
-        hasMore = (response.items?.length || 0) === limit;
+        console.log(`Fetched ${newMeetings.length} meetings (offset: ${offset}, total so far: ${allMeetings.length})`);
+
+        hasMore = newMeetings.length === limit;
         offset += limit;
       }
-      
+
+      console.log(`Sync complete: Total meetings fetched from Fathom: ${allMeetings.length}`);
       return allMeetings;
     } catch (error) {
       console.error('Error syncing meetings:', error);

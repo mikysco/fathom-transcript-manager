@@ -116,6 +116,35 @@ class TranscriptRoutes {
       }
     });
 
+    // Debug endpoint to see what domains are in the database
+    router.get('/debug/domains', async (req, res) => {
+      try {
+        const domains = await this.transcriptService.db.all(`
+          SELECT domain, COUNT(*) as meeting_count
+          FROM meeting_participants 
+          WHERE domain IS NOT NULL AND domain != ''
+          GROUP BY domain
+          ORDER BY meeting_count DESC
+          LIMIT 50
+        `);
+        
+        res.json({
+          success: true,
+          data: {
+            total_domains: domains.length,
+            domains: domains
+          }
+        });
+      } catch (error) {
+        console.error('Error fetching domain debug info:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to fetch domain debug info',
+          message: error.message
+        });
+      }
+    });
+
     // Get specific transcript
     router.get('/:id', async (req, res) => {
       try {
