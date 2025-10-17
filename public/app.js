@@ -213,7 +213,6 @@ async function downloadTranscript(id) {
                                 // If parsing fails, it might be a plain text transcript
                                 console.error('Failed to parse transcript as JSON:', parseError);
                                 formattedTranscript = transcriptData;
-                                return;
                             }
                         }
 
