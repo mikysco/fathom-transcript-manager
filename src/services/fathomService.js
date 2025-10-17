@@ -20,9 +20,13 @@ class FathomService {
     try {
       const params = {
         include_transcript: true,
-        limit: options.limit || 10,
         ...options.filters
       };
+
+      // Add cursor for pagination if provided
+      if (options.cursor) {
+        params.cursor = options.cursor;
+      }
 
       const response = await this.client.get('/meetings', { params });
       return response.data;
@@ -40,9 +44,13 @@ class FathomService {
       const params = {
         include_transcript: true,
         calendar_invitees: email,
-        limit: options.limit || 10,
         ...options.filters
       };
+
+      // Add cursor for pagination if provided
+      if (options.cursor) {
+        params.cursor = options.cursor;
+      }
 
       const response = await this.client.get('/meetings', { params });
       return response.data;
@@ -59,9 +67,13 @@ class FathomService {
     try {
       const params = {
         include_transcript: true,
-        limit: options.limit || 10,
         ...options.filters
       };
+
+      // Add cursor for pagination if provided
+      if (options.cursor) {
+        params.cursor = options.cursor;
+      }
 
       const response = await this.client.get('/meetings', { params });
       
@@ -74,7 +86,8 @@ class FathomService {
       
       return {
         items: filteredMeetings,
-        total: filteredMeetings.length
+        total: filteredMeetings.length,
+        next_cursor: response.data?.next_cursor
       };
     } catch (error) {
       console.error(`Error fetching meetings for domain ${domain}:`, error.response?.data || error.message);
@@ -90,9 +103,13 @@ class FathomService {
       // First, get all meetings and filter by company name in title or participant info
       const params = {
         include_transcript: true,
-        limit: options.limit || 10,
         ...options.filters
       };
+
+      // Add cursor for pagination if provided
+      if (options.cursor) {
+        params.cursor = options.cursor;
+      }
 
       const response = await this.client.get('/meetings', { params });
       
@@ -108,7 +125,8 @@ class FathomService {
 
       return {
         items: filteredMeetings,
-        total: filteredMeetings.length
+        total: filteredMeetings.length,
+        next_cursor: response.data?.next_cursor
       };
     } catch (error) {
       console.error(`Error fetching meetings for company ${companyName}:`, error.response?.data || error.message);
@@ -153,26 +171,51 @@ class FathomService {
   async syncAllMeetings(db, options = {}) {
     try {
       let allMeetings = [];
-      let offset = 0;
-      const limit = 100;
+      let cursor = null;
       let hasMore = true;
+      let requestCount = 0;
+      const maxRequestsPerMinute = 60;
+      const delayBetweenRequests = 1000; // 1 second between requests to stay under rate limit
 
       console.log('Starting sync of all meetings from Fathom...');
 
       while (hasMore) {
-        const response = await this.getMeetings({ 
-          limit, 
-          offset, 
-          ...options 
-        });
+        // Check rate limit
+        if (requestCount >= maxRequestsPerMinute) {
+          console.log('Rate limit reached, waiting 1 minute before continuing...');
+          await new Promise(resolve => setTimeout(resolve, 60000)); // Wait 1 minute
+          requestCount = 0;
+        }
 
-        const newMeetings = response.items || [];
+        const params = {
+          include_transcript: true,
+          ...options.filters
+        };
+
+        // Add cursor for pagination
+        if (cursor) {
+          params.cursor = cursor;
+        }
+
+        console.log(`Fetching meetings (request #${requestCount + 1})...`);
+        const response = await this.client.get('/meetings', { params });
+        const data = response.data;
+
+        const newMeetings = data.items || [];
         allMeetings = allMeetings.concat(newMeetings);
         
-        console.log(`Fetched ${newMeetings.length} meetings (offset: ${offset}, total so far: ${allMeetings.length})`);
+        console.log(`Fetched ${newMeetings.length} meetings (total so far: ${allMeetings.length})`);
 
-        hasMore = newMeetings.length === limit;
-        offset += limit;
+        // Check if there are more pages
+        hasMore = data.next_cursor && newMeetings.length > 0;
+        cursor = data.next_cursor;
+        requestCount++;
+
+        // Add delay between requests to respect rate limit
+        if (hasMore) {
+          console.log(`Waiting ${delayBetweenRequests}ms before next request...`);
+          await new Promise(resolve => setTimeout(resolve, delayBetweenRequests));
+        }
       }
 
       console.log(`Sync complete: Total meetings fetched from Fathom: ${allMeetings.length}`);
