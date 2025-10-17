@@ -186,9 +186,25 @@ class SyncRoutes {
         // Calculate and update durations
         let updated = 0;
         for (const meeting of meetings) {
-          const start = new Date(meeting.start_time);
-          const end = new Date(meeting.end_time);
-          const durationSeconds = Math.floor((end - start) / 1000);
+          let durationSeconds = 0;
+          let method = '';
+          
+          // Method 1: Calculate from start/end times
+          if (meeting.start_time && meeting.end_time) {
+            const start = new Date(meeting.start_time);
+            const end = new Date(meeting.end_time);
+            durationSeconds = Math.floor((end - start) / 1000);
+            method = 'start/end times';
+          }
+          
+          // Method 2: Extract from transcript timestamps if start/end calculation failed
+          if (durationSeconds <= 0 && meeting.transcript) {
+            const transcriptDuration = extractDurationFromTranscript(meeting.transcript);
+            if (transcriptDuration > 0) {
+              durationSeconds = transcriptDuration;
+              method = 'transcript timestamps';
+            }
+          }
           
           if (durationSeconds > 0) {
             await db.query(
@@ -202,7 +218,9 @@ class SyncRoutes {
             const mins = minutes % 60;
             const formatted = hours > 0 ? `${hours}h ${mins}m` : `${minutes}m`;
             
-            console.log(`✅ Updated "${meeting.title}": ${formatted}`);
+            console.log(`✅ Updated "${meeting.title}": ${formatted} (from ${method})`);
+          } else {
+            console.log(`⚠️ Could not calculate duration for "${meeting.title}"`);
           }
         }
         
@@ -225,6 +243,137 @@ class SyncRoutes {
     });
 
     return router;
+  }
+  
+  /**
+   * Extract duration from transcript timestamps
+   * Looks for the latest timestamp in the transcript and converts to seconds
+   */
+  extractDurationFromTranscript(transcript) {
+    try {
+      let transcriptData = transcript;
+      
+      // If it's a string, try to parse it
+      if (typeof transcriptData === 'string') {
+        try {
+          transcriptData = JSON.parse(transcriptData);
+        } catch (parseError) {
+          // If JSON parsing fails, try manual extraction
+          return this.extractDurationFromTranscriptString(transcriptData);
+        }
+      }
+      
+      if (typeof transcriptData === 'object' && transcriptData !== null) {
+        const entries = [];
+        
+        if (Array.isArray(transcriptData)) {
+          entries.push(...transcriptData);
+        } else {
+          // Handle object with numeric keys
+          const keys = Object.keys(transcriptData).sort((a, b) => parseInt(a) - parseInt(b));
+          for (const key of keys) {
+            try {
+              const entry = typeof transcriptData[key] === 'string' 
+                ? JSON.parse(transcriptData[key]) 
+                : transcriptData[key];
+              entries.push(entry);
+            } catch (parseError) {
+              continue;
+            }
+          }
+        }
+        
+        // Find the latest timestamp
+        let latestTimestamp = 0;
+        for (const entry of entries) {
+          const timestamp = this.parseTimestamp(entry.timestamp || entry.time || '');
+          if (timestamp > latestTimestamp) {
+            latestTimestamp = timestamp;
+          }
+        }
+        
+        return latestTimestamp;
+      }
+      
+      return 0;
+    } catch (error) {
+      console.error('Error extracting duration from transcript:', error);
+      return 0;
+    }
+  }
+  
+  /**
+   * Extract duration from malformed transcript string
+   */
+  extractDurationFromTranscriptString(transcriptString) {
+    try {
+      // Look for timestamp patterns like "00:05:30" or "5:30" or "330" (seconds)
+      const timestampRegex = /"timestamp":\s*"([^"]+)"/g;
+      const timeRegex = /"time":\s*"([^"]+)"/g;
+      
+      let latestSeconds = 0;
+      let match;
+      
+      // Try timestamp field
+      while ((match = timestampRegex.exec(transcriptString)) !== null) {
+        const seconds = this.parseTimestamp(match[1]);
+        if (seconds > latestSeconds) {
+          latestSeconds = seconds;
+        }
+      }
+      
+      // Try time field if timestamp didn't work
+      if (latestSeconds === 0) {
+        while ((match = timeRegex.exec(transcriptString)) !== null) {
+          const seconds = this.parseTimestamp(match[1]);
+          if (seconds > latestSeconds) {
+            latestSeconds = seconds;
+          }
+        }
+      }
+      
+      return latestSeconds;
+    } catch (error) {
+      console.error('Error extracting duration from transcript string:', error);
+      return 0;
+    }
+  }
+  
+  /**
+   * Parse various timestamp formats to seconds
+   */
+  parseTimestamp(timestamp) {
+    if (!timestamp) return 0;
+    
+    // Handle different timestamp formats
+    const str = timestamp.toString().trim();
+    
+    // Format: "00:05:30" (HH:MM:SS)
+    if (str.includes(':') && str.split(':').length === 3) {
+      const parts = str.split(':').map(Number);
+      return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    }
+    
+    // Format: "5:30" (MM:SS)
+    if (str.includes(':') && str.split(':').length === 2) {
+      const parts = str.split(':').map(Number);
+      return parts[0] * 60 + parts[1];
+    }
+    
+    // Format: "330" (seconds as number)
+    const numericValue = parseFloat(str);
+    if (!isNaN(numericValue) && numericValue > 0) {
+      // If it's a reasonable duration (less than 8 hours), assume it's seconds
+      if (numericValue < 28800) {
+        return Math.floor(numericValue);
+      }
+      // If it's larger, it might be milliseconds
+      if (numericValue > 1000) {
+        return Math.floor(numericValue / 1000);
+      }
+    }
+    
+    return 0;
   }
 }
 

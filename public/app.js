@@ -33,30 +33,7 @@ if (fullSyncBtn) {
     fullSyncBtn.addEventListener('click', () => syncData('full'));
 }
 
-const fixDurationsBtn = document.getElementById('fixDurationsBtn');
-if (fixDurationsBtn) {
-    fixDurationsBtn.addEventListener('click', async () => {
-        try {
-            showLoading('Fixing durations...');
-            const response = await fetch('/api/sync/fix-durations', { method: 'POST' });
-            const result = await response.json();
-            
-            if (result.success) {
-                showAlert(`✅ ${result.message}`, 'success');
-                // Refresh the current search results if any
-                const currentSearch = document.querySelector('input[type="text"]:focus, input[type="email"]:focus');
-                if (currentSearch && currentSearch.value.trim()) {
-                    const searchType = currentSearch.id.replace('Input', '').replace('email', 'email').replace('domain', 'domain').replace('company', 'company');
-                    await searchTranscripts(searchType);
-                }
-            } else {
-                showAlert(`❌ Fix durations failed: ${result.error}`, 'error');
-            }
-        } catch (error) {
-            showAlert(`❌ Fix durations error: ${error.message}`, 'error');
-        }
-    });
-}
+// Fix Durations button removed - now handled automatically in background
 
 if (emailSearchBtn) {
     emailSearchBtn.addEventListener('click', () => searchTranscripts('email'));
@@ -214,6 +191,13 @@ async function searchTranscripts(type) {
         if (response.ok && result.success) {
             console.log('First result duration from API:', result.data[0]?.duration, 'type:', typeof result.data[0]?.duration);
             displayResults(result.data);
+            
+            // Auto-fix durations in background if any are null
+            const hasNullDurations = result.data.some(item => item.duration === null);
+            if (hasNullDurations) {
+                console.log('🔧 Auto-fixing durations in background...');
+                fixDurationsInBackground();
+            }
         } else {
             showError(`❌ Search failed: ${result.error || result.message}`);
         }
@@ -876,3 +860,21 @@ document.addEventListener('DOMContentLoaded', () => {
     
     console.log('💡 To fix durations, run: fixDurations()');
 });
+
+// Background duration fix function
+async function fixDurationsInBackground() {
+    try {
+        const response = await fetch('/api/sync/fix-durations', { method: 'POST' });
+        const result = await response.json();
+        
+        if (result.success && result.data.updated > 0) {
+            console.log(`✅ Auto-fixed ${result.data.updated} durations in background`);
+            // Optionally refresh the current search to show updated durations
+            // This could be done silently or with a subtle notification
+        } else {
+            console.log('ℹ️ No durations needed fixing');
+        }
+    } catch (error) {
+        console.log('⚠️ Background duration fix failed:', error.message);
+    }
+}
