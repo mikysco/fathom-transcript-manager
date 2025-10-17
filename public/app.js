@@ -33,6 +33,31 @@ if (fullSyncBtn) {
     fullSyncBtn.addEventListener('click', () => syncData('full'));
 }
 
+const fixDurationsBtn = document.getElementById('fixDurationsBtn');
+if (fixDurationsBtn) {
+    fixDurationsBtn.addEventListener('click', async () => {
+        try {
+            showLoading('Fixing durations...');
+            const response = await fetch('/api/sync/fix-durations', { method: 'POST' });
+            const result = await response.json();
+            
+            if (result.success) {
+                showAlert(`✅ ${result.message}`, 'success');
+                // Refresh the current search results if any
+                const currentSearch = document.querySelector('input[type="text"]:focus, input[type="email"]:focus');
+                if (currentSearch && currentSearch.value.trim()) {
+                    const searchType = currentSearch.id.replace('Input', '').replace('email', 'email').replace('domain', 'domain').replace('company', 'company');
+                    await searchTranscripts(searchType);
+                }
+            } else {
+                showAlert(`❌ Fix durations failed: ${result.error}`, 'error');
+            }
+        } catch (error) {
+            showAlert(`❌ Fix durations error: ${error.message}`, 'error');
+        }
+    });
+}
+
 if (emailSearchBtn) {
     emailSearchBtn.addEventListener('click', () => searchTranscripts('email'));
 }

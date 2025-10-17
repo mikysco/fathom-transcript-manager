@@ -117,6 +117,74 @@ class SyncRoutes {
       }
     });
 
+    // Fix durations for existing meetings
+    router.post('/fix-durations', async (req, res) => {
+      try {
+        const db = this.transcriptService.db;
+        
+        console.log('🔧 Starting duration fix for existing meetings...');
+        
+        // Get meetings with null duration but valid start/end times
+        const meetings = await db.all(`
+          SELECT id, title, start_time, end_time, duration
+          FROM meetings 
+          WHERE duration IS NULL 
+          AND start_time IS NOT NULL 
+          AND end_time IS NOT NULL
+          ORDER BY start_time DESC
+        `);
+        
+        console.log(`📊 Found ${meetings.length} meetings with null duration`);
+        
+        if (meetings.length === 0) {
+          return res.json({
+            success: true,
+            message: 'No meetings need duration fixes',
+            data: { updated: 0 }
+          });
+        }
+        
+        // Calculate and update durations
+        let updated = 0;
+        for (const meeting of meetings) {
+          const start = new Date(meeting.start_time);
+          const end = new Date(meeting.end_time);
+          const durationSeconds = Math.floor((end - start) / 1000);
+          
+          if (durationSeconds > 0) {
+            await db.query(
+              'UPDATE meetings SET duration = $1 WHERE id = $2',
+              [durationSeconds, meeting.id]
+            );
+            updated++;
+            
+            const minutes = Math.floor(durationSeconds / 60);
+            const hours = Math.floor(minutes / 60);
+            const mins = minutes % 60;
+            const formatted = hours > 0 ? `${hours}h ${mins}m` : `${minutes}m`;
+            
+            console.log(`✅ Updated "${meeting.title}": ${formatted}`);
+          }
+        }
+        
+        console.log(`🎉 Updated ${updated} meetings with calculated durations`);
+        
+        res.json({
+          success: true,
+          message: `Successfully updated ${updated} meetings with calculated durations`,
+          data: { updated }
+        });
+        
+      } catch (error) {
+        console.error('Error fixing durations:', error);
+        res.status(500).json({
+          success: false,
+          error: 'Failed to fix durations',
+          message: error.message
+        });
+      }
+    });
+
     return router;
   }
 }
