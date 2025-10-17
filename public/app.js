@@ -199,6 +199,43 @@ async function downloadTranscript(id) {
             if (result.success && result.data) {
                 const transcript = result.data;
                 
+                // Parse and format the transcript
+                let formattedTranscript = 'No transcript available';
+                if (transcript.transcript) {
+                    try {
+                        // Handle the JSON string format from Fathom
+                        let transcriptData;
+                        if (typeof transcript.transcript === 'string') {
+                            // Try to parse the JSON string
+                            transcriptData = JSON.parse(transcript.transcript);
+                        } else {
+                            transcriptData = transcript.transcript;
+                        }
+
+                        // Handle array of transcript entries
+                        if (Array.isArray(transcriptData)) {
+                            formattedTranscript = transcriptData.map(entry => {
+                                const speaker = entry.speaker?.display_name || 'Unknown Speaker';
+                                const text = entry.text || '';
+                                const timestamp = entry.timestamp || '';
+                                return `[${timestamp}] ${speaker}: ${text}`;
+                            }).join('\n');
+                        } else if (typeof transcriptData === 'object' && transcriptData.speaker) {
+                            // Handle single entry
+                            const speaker = transcriptData.speaker?.display_name || 'Unknown Speaker';
+                            const text = transcriptData.text || '';
+                            const timestamp = transcriptData.timestamp || '';
+                            formattedTranscript = `[${timestamp}] ${speaker}: ${text}`;
+                        } else {
+                            // Fallback to raw text
+                            formattedTranscript = transcript.transcript;
+                        }
+                    } catch (error) {
+                        console.error('Error parsing transcript:', error);
+                        formattedTranscript = transcript.transcript; // Fallback to raw text
+                    }
+                }
+
                 // Format the transcript data as text
                 const content = `
 FATHOM TRANSCRIPT
@@ -216,7 +253,7 @@ ${transcript.summary || 'No summary available'}
 
 TRANSCRIPT
 ----------
-${transcript.transcript || 'No transcript available'}
+${formattedTranscript}
 `.trim();
                 
                 // Create and download the file
