@@ -146,12 +146,29 @@ class FathomService {
       console.log(`Meeting "${meeting.title || 'Untitled'}": domains found:`, domains);
     }
     
+    // Debug: Log duration data
+    console.log(`Meeting "${meeting.title || 'Untitled'}": duration =`, meeting.duration, 'type:', typeof meeting.duration);
+    
+    // Calculate duration if not provided or if it's 0
+    let duration = meeting.duration;
+    if (!duration || duration === 0) {
+      const startTime = meeting.scheduled_start_time || meeting.recording_start_time;
+      const endTime = meeting.scheduled_end_time || meeting.recording_end_time;
+      
+      if (startTime && endTime) {
+        const start = new Date(startTime);
+        const end = new Date(endTime);
+        duration = Math.floor((end - start) / 1000); // Convert to seconds
+        console.log(`Calculated duration for "${meeting.title || 'Untitled'}": ${duration} seconds`);
+      }
+    }
+    
     return {
       fathomId: meeting.id || meeting.url,
       title: meeting.title || meeting.meeting_title,
       startTime: meeting.scheduled_start_time || meeting.recording_start_time,
       endTime: meeting.scheduled_end_time || meeting.recording_end_time,
-      duration: meeting.duration,
+      duration: duration,
       recordingUrl: meeting.url,
       transcript: meeting.transcript || '',
       summary: meeting.default_summary?.markdown_formatted || '',

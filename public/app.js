@@ -318,8 +318,26 @@ function formatDate(dateString) {
 }
 
 function formatDuration(seconds) {
-    if (!seconds) return 'Unknown';
-    const minutes = Math.floor(seconds / 60);
+    console.log('formatDuration called with:', seconds, 'type:', typeof seconds);
+    if (!seconds || seconds === null || seconds === undefined) return 'Unknown';
+    
+    // Handle different possible formats
+    let durationInSeconds;
+    if (typeof seconds === 'number') {
+        durationInSeconds = seconds;
+    } else if (typeof seconds === 'string') {
+        durationInSeconds = parseInt(seconds);
+    } else {
+        console.log('Unexpected duration format:', seconds);
+        return 'Unknown';
+    }
+    
+    if (isNaN(durationInSeconds) || durationInSeconds <= 0) {
+        console.log('Invalid duration value:', seconds);
+        return 'Unknown';
+    }
+    
+    const minutes = Math.floor(durationInSeconds / 60);
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
     if (hours > 0) {
