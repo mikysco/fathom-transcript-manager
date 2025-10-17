@@ -203,6 +203,9 @@ async function downloadTranscript(id) {
                 let formattedTranscript = 'No transcript available';
                 if (transcript.transcript) {
                     try {
+                        console.log('Raw transcript data type:', typeof transcript.transcript);
+                        console.log('Raw transcript data sample:', JSON.stringify(transcript.transcript).substring(0, 200) + '...');
+                        
                         // Handle the JSON string format from Fathom
                         let transcriptData;
                         if (typeof transcript.transcript === 'string') {
@@ -211,6 +214,9 @@ async function downloadTranscript(id) {
                         } else {
                             transcriptData = transcript.transcript;
                         }
+
+                        console.log('Parsed transcript data type:', typeof transcriptData);
+                        console.log('Parsed transcript data keys:', Object.keys(transcriptData || {}).slice(0, 5));
 
                         // Handle object with string keys (the actual format from Fathom)
                         if (typeof transcriptData === 'object' && !Array.isArray(transcriptData)) {
@@ -225,9 +231,12 @@ async function downloadTranscript(id) {
                                         entries.push(entry);
                                     } catch (parseError) {
                                         console.error('Error parsing individual entry:', parseError);
+                                        console.error('Failed entry:', transcriptData[key]);
                                     }
                                 }
                             }
+                            
+                            console.log('Total entries parsed:', entries.length);
                             
                             // Sort by timestamp if available
                             entries.sort((a, b) => {
@@ -260,8 +269,12 @@ async function downloadTranscript(id) {
                             formattedTranscript = `[${timestamp}] ${speaker}: ${text}`;
                         } else {
                             // Fallback to raw text
+                            console.log('Using fallback - raw transcript data');
                             formattedTranscript = transcript.transcript;
                         }
+                        
+                        console.log('Final formatted transcript length:', formattedTranscript.length);
+                        console.log('First 200 chars of formatted transcript:', formattedTranscript.substring(0, 200));
                     } catch (error) {
                         console.error('Error parsing transcript:', error);
                         formattedTranscript = transcript.transcript; // Fallback to raw text
