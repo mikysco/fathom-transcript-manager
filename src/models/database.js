@@ -36,6 +36,8 @@ class Database {
         title TEXT,
         start_time DATETIME,
         end_time DATETIME,
+        recording_start_time DATETIME,
+        recording_end_time DATETIME,
         duration INTEGER,
         recording_url TEXT,
         transcript TEXT,
@@ -65,6 +67,27 @@ class Database {
 
     for (const table of tables) {
       await this.run(table);
+    }
+    
+    // Migration: Add recording time columns to existing tables
+    await this.migrateRecordingTimes();
+  }
+  
+  async migrateRecordingTimes() {
+    try {
+      // Check if recording_start_time column exists
+      const tableInfo = await this.all('PRAGMA table_info(meetings)');
+      const hasRecordingStartTime = tableInfo.some(col => col.name === 'recording_start_time');
+      
+      if (!hasRecordingStartTime) {
+        console.log('🔧 Migrating database: Adding recording time columns...');
+        await this.run('ALTER TABLE meetings ADD COLUMN recording_start_time DATETIME');
+        await this.run('ALTER TABLE meetings ADD COLUMN recording_end_time DATETIME');
+        console.log('✅ Migration complete: Recording time columns added');
+      }
+    } catch (error) {
+      console.error('Migration error:', error);
+      // Don't throw - allow app to continue even if migration fails
     }
   }
 

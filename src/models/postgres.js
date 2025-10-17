@@ -52,6 +52,8 @@ class PostgreSQLDatabase {
         title TEXT,
         start_time TIMESTAMP,
         end_time TIMESTAMP,
+        recording_start_time TIMESTAMP,
+        recording_end_time TIMESTAMP,
         duration INTEGER,
         recording_url TEXT,
         transcript TEXT,
@@ -120,6 +122,35 @@ class PostgreSQLDatabase {
       console.log('Migration completed: Added unique constraint to meeting_participants');
     } catch (error) {
       console.log('Migration error (may be expected):', error.message);
+    }
+
+    // Add recording time columns if they don't exist
+    try {
+      await this.pool.query(`
+        DO $$ 
+        BEGIN
+          -- Add recording_start_time column if it doesn't exist
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_name = 'meetings' AND column_name = 'recording_start_time'
+          ) THEN
+            ALTER TABLE meetings ADD COLUMN recording_start_time TIMESTAMP;
+            RAISE NOTICE 'Added recording_start_time column';
+          END IF;
+
+          -- Add recording_end_time column if it doesn't exist
+          IF NOT EXISTS (
+            SELECT 1 FROM information_schema.columns 
+            WHERE table_name = 'meetings' AND column_name = 'recording_end_time'
+          ) THEN
+            ALTER TABLE meetings ADD COLUMN recording_end_time TIMESTAMP;
+            RAISE NOTICE 'Added recording_end_time column';
+          END IF;
+        END $$;
+      `);
+      console.log('Migration completed: Added recording time columns');
+    } catch (error) {
+      console.log('Migration error for recording times (may be expected):', error.message);
     }
   }
 

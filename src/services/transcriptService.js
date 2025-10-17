@@ -31,13 +31,15 @@ class TranscriptService {
         // Insert meeting
         const meetingResult = await this.db.query(`
           INSERT INTO meetings 
-          (fathom_meeting_id, title, start_time, end_time, duration, recording_url, transcript, summary)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          (fathom_meeting_id, title, start_time, end_time, recording_start_time, recording_end_time, duration, recording_url, transcript, summary)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
           ON CONFLICT (fathom_meeting_id) 
           DO UPDATE SET 
             title = EXCLUDED.title,
             start_time = EXCLUDED.start_time,
             end_time = EXCLUDED.end_time,
+            recording_start_time = EXCLUDED.recording_start_time,
+            recording_end_time = EXCLUDED.recording_end_time,
             duration = EXCLUDED.duration,
             recording_url = EXCLUDED.recording_url,
             transcript = EXCLUDED.transcript,
@@ -49,6 +51,8 @@ class TranscriptService {
           processedMeeting.title,
           processedMeeting.startTime,
           processedMeeting.endTime,
+          processedMeeting.recordingStartTime,
+          processedMeeting.recordingEndTime,
           processedMeeting.duration,
           processedMeeting.recordingUrl,
           processedMeeting.transcript,
