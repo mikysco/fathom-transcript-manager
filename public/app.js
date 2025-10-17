@@ -211,10 +211,39 @@ async function downloadTranscript(id) {
                                 transcriptData = JSON.parse(transcriptData);
                                 console.log('Successfully parsed transcript JSON');
                             } catch (parseError) {
-                                // If parsing fails, it might be a plain text transcript
+                                // If JSON parsing fails, try to extract individual entries using regex
                                 console.error('Failed to parse transcript as JSON:', parseError);
-                                formattedTranscript = transcriptData;
-                                return;
+                                console.log('Attempting regex extraction...');
+                                
+                                // The transcript is a string containing multiple JSON entries
+                                // Extract each JSON entry using regex
+                                const jsonEntries = [];
+                                const jsonPattern = /\{[^}]*"speaker"[^}]*"text"[^}]*"timestamp"[^}]*\}/g;
+                                let match;
+                                
+                                while ((match = jsonPattern.exec(transcriptData)) !== null) {
+                                    try {
+                                        const entry = JSON.parse(match[0]);
+                                        jsonEntries.push(entry);
+                                    } catch (e) {
+                                        // If individual entry parsing fails, skip it
+                                        console.warn('Skipping malformed entry:', match[0].substring(0, 100));
+                                    }
+                                }
+                                
+                                if (jsonEntries.length > 0) {
+                                    formattedTranscript = jsonEntries.map(entry => {
+                                        const speaker = entry.speaker?.display_name || 'Unknown Speaker';
+                                        const text = entry.text || '';
+                                        const timestamp = entry.timestamp || '';
+                                        return `${speaker} [${timestamp}]: ${text}`;
+                                    }).join('\n\n');
+                                    return;
+                                } else {
+                                    // If regex extraction fails, show raw data
+                                    formattedTranscript = transcriptData;
+                                    return;
+                                }
                             }
                         }
 
