@@ -3,7 +3,9 @@
 // App state
 const app = {
     selectedTranscripts: new Set(),
-    currentResults: []
+    currentResults: [],
+    lastSearchType: null,
+    lastSearchQuery: null
 };
 
 // DOM Elements
@@ -179,6 +181,10 @@ async function searchTranscripts(type) {
         showError(`Please enter a ${placeholder.toLowerCase()}`);
         return;
     }
+    
+    // Store search parameters for potential refresh
+    app.lastSearchType = type;
+    app.lastSearchQuery = query;
     
     try {
         showLoading(`Searching transcripts by ${type}...`);
@@ -851,8 +857,12 @@ async function fixDurationsInBackground() {
         
         if (result.success && result.data.updated > 0) {
             console.log(`✅ Auto-fixed ${result.data.updated} durations in background`);
-            // Optionally refresh the current search to show updated durations
-            // This could be done silently or with a subtle notification
+            
+            // Refresh the current search to show updated durations
+            if (app.lastSearchType && app.lastSearchQuery) {
+                console.log('🔄 Refreshing search results with updated durations...');
+                await searchTranscripts(app.lastSearchType);
+            }
         } else {
             console.log('ℹ️ No durations needed fixing');
         }
