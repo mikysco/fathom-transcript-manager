@@ -188,41 +188,45 @@ class SyncRoutes {
         // Calculate and update durations
         let updated = 0;
         for (const meeting of meetings) {
-          let durationSeconds = 0;
-          let method = '';
-          
-          // Method 1: Extract from transcript timestamps (PRIORITY - actual duration)
-          if (meeting.transcript) {
-            const transcriptDuration = extractDurationFromTranscript(meeting.transcript);
-            if (transcriptDuration > 0) {
-              durationSeconds = transcriptDuration;
-              method = 'transcript timestamps (actual)';
+          try {
+            let durationSeconds = 0;
+            let method = '';
+            
+            // Method 1: Extract from transcript timestamps (PRIORITY - actual duration)
+            if (meeting.transcript) {
+              const transcriptDuration = this.extractDurationFromTranscript(meeting.transcript);
+              if (transcriptDuration > 0) {
+                durationSeconds = transcriptDuration;
+                method = 'transcript timestamps (actual)';
+              }
             }
-          }
-          
-          // Method 2: Calculate from start/end times (fallback - scheduled duration)
-          if (durationSeconds <= 0 && meeting.start_time && meeting.end_time) {
-            const start = new Date(meeting.start_time);
-            const end = new Date(meeting.end_time);
-            durationSeconds = Math.floor((end - start) / 1000);
-            method = 'start/end times (scheduled)';
-          }
-          
-          if (durationSeconds > 0) {
-            await db.query(
-              'UPDATE meetings SET duration = $1 WHERE id = $2',
-              [durationSeconds, meeting.id]
-            );
-            updated++;
             
-            const minutes = Math.floor(durationSeconds / 60);
-            const hours = Math.floor(minutes / 60);
-            const mins = minutes % 60;
-            const formatted = hours > 0 ? `${hours}h ${mins}m` : `${minutes}m`;
+            // Method 2: Calculate from start/end times (fallback - scheduled duration)
+            if (durationSeconds <= 0 && meeting.start_time && meeting.end_time) {
+              const start = new Date(meeting.start_time);
+              const end = new Date(meeting.end_time);
+              durationSeconds = Math.floor((end - start) / 1000);
+              method = 'start/end times (scheduled)';
+            }
             
-            console.log(`✅ Updated "${meeting.title}": ${formatted} (from ${method})`);
-          } else {
-            console.log(`⚠️ Could not calculate duration for "${meeting.title}"`);
+            if (durationSeconds > 0) {
+              await db.query(
+                'UPDATE meetings SET duration = $1 WHERE id = $2',
+                [durationSeconds, meeting.id]
+              );
+              updated++;
+              
+              const minutes = Math.floor(durationSeconds / 60);
+              const hours = Math.floor(minutes / 60);
+              const mins = minutes % 60;
+              const formatted = hours > 0 ? `${hours}h ${mins}m` : `${minutes}m`;
+              
+              console.log(`✅ Updated "${meeting.title}": ${formatted} (from ${method})`);
+            } else {
+              console.log(`⚠️ Could not calculate duration for "${meeting.title}"`);
+            }
+          } catch (error) {
+            console.error(`❌ Error processing meeting "${meeting.title}":`, error);
           }
         }
         
@@ -239,7 +243,8 @@ class SyncRoutes {
         res.status(500).json({
           success: false,
           error: 'Failed to fix durations',
-          message: error.message
+          message: error.message,
+          stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
         });
       }
     });
