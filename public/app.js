@@ -1,5 +1,11 @@
 // Fathom Transcript Manager - Main Application Logic
 
+// App state
+const app = {
+    selectedTranscripts: new Set(),
+    currentResults: []
+};
+
 // DOM Elements
 const testApiBtn = document.getElementById('testApiBtn');
 const syncDataBtn = document.getElementById('syncDataBtn');
@@ -41,7 +47,7 @@ if (companySearchBtn) {
 
 // Download button event listener
 document.addEventListener('click', (e) => {
-    if (e.target.id === 'downloadBtn') {
+    if (e.target.id === 'downloadBtn' || e.target.closest('#downloadBtn')) {
         handleDownloadClick();
     }
 });
@@ -223,11 +229,19 @@ function displayResults(results) {
                 <p>No transcripts found for your search. Try syncing data or a different query.</p>
             </div>
         `;
+        // Clear selections and hide controls
+        app.selectedTranscripts.clear();
+        app.currentResults = [];
+        updateSelectedCount();
         return;
     }
     
     // Sort results by date (newest first)
     const sortedResults = results.sort((a, b) => new Date(b.startTime) - new Date(a.startTime));
+    
+    // Store current results and clear selections
+    app.currentResults = sortedResults;
+    app.selectedTranscripts.clear();
     
     // Show selection controls
     const selectAllBtn = document.getElementById('selectAllBtn');
@@ -245,7 +259,7 @@ function displayResults(results) {
                 <thead class="bg-gray-50">
                     <tr>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-8">
-                            <input type="checkbox" id="selectAllCheckbox" class="form-checkbox h-4 w-4 text-blue-600">
+                            <!-- Checkbox column header (no checkbox) -->
                         </th>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Meeting Title</th>
                         <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date/Time</th>
@@ -327,14 +341,19 @@ function setupCheckboxListeners() {
         });
     });
     
-    // Select all checkbox listener
-    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
-    if (selectAllCheckbox) {
-        selectAllCheckbox.addEventListener('change', (e) => {
+    // Select all button listener
+    const selectAllBtn = document.getElementById('selectAllBtn');
+    if (selectAllBtn) {
+        selectAllBtn.addEventListener('click', () => {
             const checkboxes = document.querySelectorAll('.transcript-checkbox');
+            const allChecked = app.currentResults.every(result => 
+                app.selectedTranscripts.has(result.id.toString())
+            );
+            
+            // Toggle all checkboxes
             checkboxes.forEach(checkbox => {
-                checkbox.checked = e.target.checked;
-                if (e.target.checked) {
+                checkbox.checked = !allChecked;
+                if (!allChecked) {
                     app.selectedTranscripts.add(checkbox.value);
                 } else {
                     app.selectedTranscripts.delete(checkbox.value);
@@ -348,19 +367,39 @@ function setupCheckboxListeners() {
 function updateSelectedCount() {
     const selectedCountSpan = document.getElementById('selectedCount');
     const downloadBtn = document.getElementById('downloadBtn');
+    const selectAllBtn = document.getElementById('selectAllBtn');
+    
+    const count = app.selectedTranscripts.size;
     
     if (selectedCountSpan) {
-        selectedCountSpan.textContent = app.selectedTranscripts.size;
+        selectedCountSpan.textContent = count;
     }
     
     if (downloadBtn) {
-        const count = app.selectedTranscripts.size;
         if (count === 0) {
             downloadBtn.innerHTML = '<i class="fas fa-download mr-2"></i>Download Selected (0)';
+            downloadBtn.disabled = true;
+            downloadBtn.classList.add('opacity-50', 'cursor-not-allowed');
         } else if (count === 1) {
             downloadBtn.innerHTML = '<i class="fas fa-download mr-2"></i>Download Selected (1)';
+            downloadBtn.disabled = false;
+            downloadBtn.classList.remove('opacity-50', 'cursor-not-allowed');
         } else {
             downloadBtn.innerHTML = `<i class="fas fa-download mr-2"></i>Download Journey (${count})`;
+            downloadBtn.disabled = false;
+            downloadBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+    }
+    
+    // Update Select All button text
+    if (selectAllBtn && app.currentResults.length > 0) {
+        const allChecked = app.currentResults.every(result => 
+            app.selectedTranscripts.has(result.id.toString())
+        );
+        if (allChecked) {
+            selectAllBtn.innerHTML = '<i class="fas fa-square mr-1"></i>Deselect All';
+        } else {
+            selectAllBtn.innerHTML = '<i class="fas fa-check-square mr-1"></i>Select All';
         }
     }
 }
