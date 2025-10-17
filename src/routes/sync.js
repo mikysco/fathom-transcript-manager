@@ -189,21 +189,21 @@ class SyncRoutes {
           let durationSeconds = 0;
           let method = '';
           
-          // Method 1: Calculate from start/end times
-          if (meeting.start_time && meeting.end_time) {
-            const start = new Date(meeting.start_time);
-            const end = new Date(meeting.end_time);
-            durationSeconds = Math.floor((end - start) / 1000);
-            method = 'start/end times';
-          }
-          
-          // Method 2: Extract from transcript timestamps if start/end calculation failed
-          if (durationSeconds <= 0 && meeting.transcript) {
+          // Method 1: Extract from transcript timestamps (PRIORITY - actual duration)
+          if (meeting.transcript) {
             const transcriptDuration = extractDurationFromTranscript(meeting.transcript);
             if (transcriptDuration > 0) {
               durationSeconds = transcriptDuration;
-              method = 'transcript timestamps';
+              method = 'transcript timestamps (actual)';
             }
+          }
+          
+          // Method 2: Calculate from start/end times (fallback - scheduled duration)
+          if (durationSeconds <= 0 && meeting.start_time && meeting.end_time) {
+            const start = new Date(meeting.start_time);
+            const end = new Date(meeting.end_time);
+            durationSeconds = Math.floor((end - start) / 1000);
+            method = 'start/end times (scheduled)';
           }
           
           if (durationSeconds > 0) {
@@ -311,6 +311,9 @@ class SyncRoutes {
       const timestampRegex = /"timestamp":\s*"([^"]+)"/g;
       const timeRegex = /"time":\s*"([^"]+)"/g;
       
+      // Also look for bracket format timestamps like [00:17:05] in the raw text
+      const bracketTimestampRegex = /\[(\d{1,2}:\d{2}:\d{2})\]/g;
+      
       let latestSeconds = 0;
       let match;
       
@@ -325,6 +328,16 @@ class SyncRoutes {
       // Try time field if timestamp didn't work
       if (latestSeconds === 0) {
         while ((match = timeRegex.exec(transcriptString)) !== null) {
+          const seconds = this.parseTimestamp(match[1]);
+          if (seconds > latestSeconds) {
+            latestSeconds = seconds;
+          }
+        }
+      }
+      
+      // Try bracket format timestamps if other methods didn't work
+      if (latestSeconds === 0) {
+        while ((match = bracketTimestampRegex.exec(transcriptString)) !== null) {
           const seconds = this.parseTimestamp(match[1]);
           if (seconds > latestSeconds) {
             latestSeconds = seconds;
@@ -348,16 +361,24 @@ class SyncRoutes {
     // Handle different timestamp formats
     const str = timestamp.toString().trim();
     
-    // Format: "00:05:30" (HH:MM:SS)
+    // Format: "00:05:30" or "[00:05:30]" (HH:MM:SS with optional brackets)
     if (str.includes(':') && str.split(':').length === 3) {
-      const parts = str.split(':').map(Number);
-      return parts[0] * 3600 + parts[1] * 60 + parts[2];
+      // Remove brackets if present
+      const cleanStr = str.replace(/[\[\]]/g, '');
+      const parts = cleanStr.split(':').map(Number);
+      if (parts.length === 3 && !parts.some(isNaN)) {
+        return parts[0] * 3600 + parts[1] * 60 + parts[2];
+      }
     }
     
-    // Format: "5:30" (MM:SS)
+    // Format: "5:30" or "[5:30]" (MM:SS with optional brackets)
     if (str.includes(':') && str.split(':').length === 2) {
-      const parts = str.split(':').map(Number);
-      return parts[0] * 60 + parts[1];
+      // Remove brackets if present
+      const cleanStr = str.replace(/[\[\]]/g, '');
+      const parts = cleanStr.split(':').map(Number);
+      if (parts.length === 2 && !parts.some(isNaN)) {
+        return parts[0] * 60 + parts[1];
+      }
     }
     
     // Format: "330" (seconds as number)
