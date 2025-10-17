@@ -451,7 +451,18 @@ class TranscriptService {
         const date = new Date(transcript.startTime).toLocaleDateString();
         const time = new Date(transcript.startTime).toLocaleTimeString();
         
-        content += `=== TRANSCRIPT ${i + 1}: ${transcript.title || 'Untitled Meeting'} (${date} ${time}) ===\n`;
+        // Add clear visual separation between transcripts
+        if (i > 0) {
+          content += `\n\n${'='.repeat(80)}\n`;
+          content += `                    END OF TRANSCRIPT ${i}\n`;
+          content += `${'='.repeat(80)}\n\n`;
+        }
+        
+        content += `${'='.repeat(80)}\n`;
+        content += `                    TRANSCRIPT ${i + 1} OF ${transcripts.length}\n`;
+        content += `                    ${transcript.title || 'Untitled Meeting'}\n`;
+        content += `                    ${date} at ${time}\n`;
+        content += `${'='.repeat(80)}\n\n`;
         
         // Format the transcript content using the same robust parsing as individual downloads
         let transcriptContent = 'No transcript available';
@@ -552,6 +563,12 @@ class TranscriptService {
         
         content += transcriptContent + '\n\n';
       }
+
+      // Add final ending separator
+      content += `${'='.repeat(80)}\n`;
+      content += `                    END OF TRANSCRIPT ${transcripts.length}\n`;
+      content += `                    END OF CHRONOLOGICAL JOURNEY\n`;
+      content += `${'='.repeat(80)}\n`;
 
       return {
         filename,
