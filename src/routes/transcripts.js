@@ -116,34 +116,62 @@ class TranscriptRoutes {
       }
     });
 
-    // Debug endpoint to see what domains are in the database
-    router.get('/debug/domains', async (req, res) => {
-      try {
-        const domains = await this.transcriptService.db.all(`
-          SELECT domain, COUNT(*) as meeting_count
-          FROM meeting_participants 
-          WHERE domain IS NOT NULL AND domain != ''
-          GROUP BY domain
-          ORDER BY meeting_count DESC
-          LIMIT 50
-        `);
-        
-        res.json({
-          success: true,
-          data: {
-            total_domains: domains.length,
-            domains: domains
+        // Debug endpoint to see what domains are in the database
+        router.get('/debug/domains', async (req, res) => {
+          try {
+            const domains = await this.transcriptService.db.all(`
+              SELECT domain, COUNT(*) as meeting_count
+              FROM meeting_participants 
+              WHERE domain IS NOT NULL AND domain != ''
+              GROUP BY domain
+              ORDER BY meeting_count DESC
+              LIMIT 50
+            `);
+            
+            res.json({
+              success: true,
+              data: {
+                total_domains: domains.length,
+                domains: domains
+              }
+            });
+          } catch (error) {
+            console.error('Error fetching domain debug info:', error);
+            res.status(500).json({
+              success: false,
+              error: 'Failed to fetch domain debug info',
+              message: error.message
+            });
           }
         });
-      } catch (error) {
-        console.error('Error fetching domain debug info:', error);
-        res.status(500).json({
-          success: false,
-          error: 'Failed to fetch domain debug info',
-          message: error.message
+
+        // Debug endpoint to check duration data in database
+        router.get('/debug/duration', async (req, res) => {
+          try {
+            const meetings = await this.transcriptService.db.all(`
+              SELECT id, title, start_time, end_time, duration, 
+                     EXTRACT(EPOCH FROM (end_time - start_time)) as calculated_duration
+              FROM meetings 
+              ORDER BY start_time DESC 
+              LIMIT 10
+            `);
+            
+            res.json({
+              success: true,
+              data: {
+                meetings: meetings,
+                sample_meeting: meetings[0] || null
+              }
+            });
+          } catch (error) {
+            console.error('Error fetching duration debug info:', error);
+            res.status(500).json({
+              success: false,
+              error: 'Failed to fetch duration debug info',
+              message: error.message
+            });
+          }
         });
-      }
-    });
 
     // Download multiple transcripts as a single file
     router.post('/download-multiple', async (req, res) => {
