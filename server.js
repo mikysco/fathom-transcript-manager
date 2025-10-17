@@ -74,6 +74,41 @@ class Server {
     this.app.use(express.json({ limit: '10mb' }));
     this.app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+    // Basic Auth middleware (protect everything except health and OPTIONS)
+    const basicAuth = (req, res, next) => {
+      try {
+        // Allow health checks and CORS preflight without auth
+        if (req.path === '/health' || req.method === 'OPTIONS') {
+          return next();
+        }
+
+        const header = req.headers.authorization || '';
+        if (!header.startsWith('Basic ')) {
+          res.set('WWW-Authenticate', 'Basic realm="Fathom Transcript Manager"');
+          return res.status(401).send('Authentication required');
+        }
+
+        const base64 = header.split(' ')[1] || '';
+        const decoded = Buffer.from(base64, 'base64').toString('utf8');
+        const [username, password] = decoded.split(':');
+
+        const isEmail = typeof username === 'string' && username.includes('@');
+        const hasValidDomain = isEmail && username.toLowerCase().endsWith('@getcollate.io');
+        const isValidPassword = password === 'admin';
+
+        if (hasValidDomain && isValidPassword) {
+          return next();
+        }
+
+        res.set('WWW-Authenticate', 'Basic realm="Fathom Transcript Manager"');
+        return res.status(401).send('Invalid credentials');
+      } catch (err) {
+        return res.status(401).send('Authentication error');
+      }
+    };
+
+    this.app.use(basicAuth);
+
     // Serve static files
     this.app.use(express.static(path.join(__dirname, 'public')));
   }
