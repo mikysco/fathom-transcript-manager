@@ -209,18 +209,22 @@ class SyncRoutes {
             }
             
             if (durationSeconds > 0) {
-              await db.query(
-                'UPDATE meetings SET duration = $1 WHERE id = $2',
-                [durationSeconds, meeting.id]
-              );
-              updated++;
-              
-              const minutes = Math.floor(durationSeconds / 60);
-              const hours = Math.floor(minutes / 60);
-              const mins = minutes % 60;
-              const formatted = hours > 0 ? `${hours}h ${mins}m` : `${minutes}m`;
-              
-              console.log(`✅ Updated "${meeting.title}": ${formatted} (from ${method})`);
+              if (meeting.duration !== durationSeconds) {
+                await db.query(
+                  'UPDATE meetings SET duration = $1 WHERE id = $2',
+                  [durationSeconds, meeting.id]
+                );
+                updated++;
+                
+                const minutes = Math.floor(durationSeconds / 60);
+                const hours = Math.floor(minutes / 60);
+                const mins = minutes % 60;
+                const formatted = hours > 0 ? `${hours}h ${mins}m` : `${minutes}m`;
+                
+                console.log(`✅ Updated "${meeting.title}": ${formatted} (from ${method})`);
+              } else {
+                console.log(`ℹ️ Skipped "${meeting.title}": duration unchanged (${meeting.duration}s)`);
+              }
             } else {
               console.log(`⚠️ Could not calculate duration for "${meeting.title}"`);
             }
