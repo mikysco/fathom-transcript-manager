@@ -218,19 +218,57 @@ async function downloadTranscript(id) {
                                 console.error('Failed to parse transcript as JSON:', parseError);
                                 console.log('Error at position:', parseError.message);
                                 
-                                // Try to fix common JSON issues and parse again
+                                // Try to manually extract entries using regex since JSON is corrupted
                                 try {
-                                    console.log('Attempting to fix and re-parse JSON...');
-                                    // Remove any trailing commas or fix common JSON issues
-                                    let fixedJson = transcriptData
-                                        .replace(/,(\s*[}\]])/g, '$1') // Remove trailing commas
-                                        .replace(/([{,]\s*)(\w+):/g, '$1"$2":') // Quote unquoted keys
-                                        .replace(/:\s*'([^']*)'/g, ': "$1"'); // Replace single quotes with double quotes
+                                    console.log('Attempting manual extraction using regex...');
                                     
-                                    transcriptData = JSON.parse(fixedJson);
-                                    console.log('Successfully parsed fixed JSON');
-                                } catch (fixError) {
-                                    console.error('Failed to fix and parse JSON:', fixError);
+                                    // Extract all the JSON string values using regex
+                                    // Pattern matches: "key": "value" where value is a JSON string
+                                    const entryPattern = /"(\d+)":\s*"({[^}]*"speaker"[^}]*"text"[^}]*"timestamp"[^}]*})"/g;
+                                    const entries = [];
+                                    let match;
+                                    
+                                    while ((match = entryPattern.exec(transcriptData)) !== null) {
+                                        try {
+                                            const key = match[1];
+                                            const entryStr = match[2];
+                                            
+                                            // Unescape the JSON string
+                                            const unescapedStr = entryStr
+                                                .replace(/\\"/g, '"')
+                                                .replace(/\\\\/g, '\\');
+                                            
+                                            const entry = JSON.parse(unescapedStr);
+                                            entries.push({ key: parseInt(key), entry });
+                                            
+                                            console.log(`Extracted entry ${key}:`, entry.speaker?.display_name, entry.text?.substring(0, 50));
+                                        } catch (e) {
+                                            console.warn(`Failed to parse entry ${match[1]}:`, e.message);
+                                        }
+                                    }
+                                    
+                                    // Sort by key and format
+                                    entries.sort((a, b) => a.key - b.key);
+                                    
+                                    if (entries.length > 0) {
+                                        formattedTranscript = entries.map(item => {
+                                            const entry = item.entry;
+                                            const speaker = entry.speaker?.display_name || 'Unknown Speaker';
+                                            const text = entry.text || '';
+                                            const timestamp = entry.timestamp || '';
+                                            return `${speaker} [${timestamp}]: ${text}`;
+                                        }).join('\n\n');
+                                        
+                                        console.log(`Successfully extracted ${entries.length} entries`);
+                                        console.log('First 200 chars of formatted:', formattedTranscript.substring(0, 200));
+                                        return;
+                                    } else {
+                                        console.log('No entries could be extracted');
+                                        formattedTranscript = 'Error: Unable to extract transcript entries from corrupted data.';
+                                        return;
+                                    }
+                                } catch (extractError) {
+                                    console.error('Failed to extract entries:', extractError);
                                     formattedTranscript = 'Error: Unable to parse transcript data. The JSON format appears to be corrupted.';
                                     return;
                                 }
