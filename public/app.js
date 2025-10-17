@@ -241,9 +241,22 @@ async function downloadTranscript(id) {
                                         try {
                                             entry = JSON.parse(transcriptData[key]);
                                         } catch (e) {
-                                            // If it fails, skip malformed entries
-                                            console.warn(`Skipping malformed entry at key ${key}`);
-                                            continue;
+                                            // If JSON parsing fails, try to extract basic info using regex
+                                            const textMatch = transcriptData[key].match(/"text":"([^"]*?)"/);
+                                            const speakerMatch = transcriptData[key].match(/"display_name":"([^"]*?)"/);
+                                            const timestampMatch = transcriptData[key].match(/"timestamp":"([^"]*?)"/);
+                                            
+                                            if (textMatch || speakerMatch || timestampMatch) {
+                                                entry = {
+                                                    speaker: { display_name: speakerMatch ? speakerMatch[1] : 'Unknown Speaker' },
+                                                    text: textMatch ? textMatch[1] : '',
+                                                    timestamp: timestampMatch ? timestampMatch[1] : ''
+                                                };
+                                            } else {
+                                                // If we can't extract anything useful, skip this entry
+                                                console.warn(`Skipping malformed entry at key ${key}`);
+                                                continue;
+                                            }
                                         }
                                     } else if (typeof transcriptData[key] === 'object') {
                                         // Already an object, use directly
