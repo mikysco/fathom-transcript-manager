@@ -222,9 +222,9 @@ async function downloadTranscript(id) {
                                 try {
                                     console.log('Attempting manual extraction using regex...');
                                     
-                                    // Extract all the JSON string values using regex
+                                    // Extract all the JSON string values using a simpler approach
                                     // Pattern matches: "key": "value" where value is a JSON string
-                                    const entryPattern = /"(\d+)":\s*"({[^}]*"speaker"[^}]*"text"[^}]*"timestamp"[^}]*})"/g;
+                                    const entryPattern = /"(\d+)":\s*"([^"]*(?:\\.[^"]*)*)"/g;
                                     const entries = [];
                                     let match;
                                     
@@ -233,17 +233,23 @@ async function downloadTranscript(id) {
                                             const key = match[1];
                                             const entryStr = match[2];
                                             
+                                            console.log(`Found entry ${key}, length: ${entryStr.length}`);
+                                            console.log(`Entry preview: ${entryStr.substring(0, 100)}...`);
+                                            
                                             // Unescape the JSON string
                                             const unescapedStr = entryStr
                                                 .replace(/\\"/g, '"')
                                                 .replace(/\\\\/g, '\\');
                                             
+                                            console.log(`Unescaped preview: ${unescapedStr.substring(0, 100)}...`);
+                                            
                                             const entry = JSON.parse(unescapedStr);
                                             entries.push({ key: parseInt(key), entry });
                                             
-                                            console.log(`Extracted entry ${key}:`, entry.speaker?.display_name, entry.text?.substring(0, 50));
+                                            console.log(`Successfully parsed entry ${key}:`, entry.speaker?.display_name, entry.text?.substring(0, 50));
                                         } catch (e) {
                                             console.warn(`Failed to parse entry ${match[1]}:`, e.message);
+                                            console.log(`Problematic entry: ${match[2].substring(0, 200)}...`);
                                         }
                                     }
                                     
