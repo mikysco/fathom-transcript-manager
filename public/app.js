@@ -201,6 +201,7 @@ async function downloadTranscript(id) {
                 
                 // Parse and format the transcript
                 let formattedTranscript = 'No transcript available';
+                let transcriptProcessed = false; // Flag to track if we successfully processed the transcript
                 if (transcript.transcript) {
                     try {
                         let transcriptData = transcript.transcript;
@@ -290,6 +291,8 @@ async function downloadTranscript(id) {
                                         
                                         console.log(`Successfully extracted ${entries.length} entries`);
                                         console.log('First 200 chars of formatted:', formattedTranscript.substring(0, 200));
+                                        // Mark that we successfully processed the transcript
+                                        transcriptProcessed = true;
                                     } else {
                                         console.log('No entries could be extracted');
                                         formattedTranscript = 'Error: Unable to extract transcript entries from corrupted data.';
@@ -301,15 +304,17 @@ async function downloadTranscript(id) {
                             }
                         }
 
-                        console.log('Transcript data type:', typeof transcriptData);
-                        console.log('Is array:', Array.isArray(transcriptData));
-                        console.log('Keys:', Object.keys(transcriptData || {}));
+                        // Only continue with other processing methods if we haven't already processed the transcript
+                        if (!transcriptProcessed) {
+                            console.log('Transcript data type:', typeof transcriptData);
+                            console.log('Is array:', Array.isArray(transcriptData));
+                            console.log('Keys:', Object.keys(transcriptData || {}));
 
-                        // Now transcriptData should be an object or array
-                        // The format from Fathom is an object where keys are array indices
-                        // and values are JSON strings of individual transcript entries
-                        
-                        if (typeof transcriptData === 'object' && !Array.isArray(transcriptData)) {
+                            // Now transcriptData should be an object or array
+                            // The format from Fathom is an object where keys are array indices
+                            // and values are JSON strings of individual transcript entries
+                            
+                            if (typeof transcriptData === 'object' && !Array.isArray(transcriptData)) {
                             const entries = [];
                             
                             // Get all keys and sort them numerically (they're array indices as strings)
@@ -383,6 +388,7 @@ async function downloadTranscript(id) {
                             // Fallback - if it's not an object or array, it might be a string
                             formattedTranscript = transcriptData;
                         }
+                        } // End of if (!transcriptProcessed)
                     } catch (error) {
                         console.error('Error parsing transcript:', error);
                         console.error('Transcript data:', transcript.transcript);
