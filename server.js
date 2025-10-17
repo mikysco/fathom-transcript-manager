@@ -14,6 +14,8 @@ class Server {
     this.app = express();
     this.port = process.env.PORT || 3001;
     this.transcriptService = null;
+    this.autoSyncInterval = null;
+    this.isAutoSyncRunning = false;
   }
 
   async initialize() {
@@ -134,16 +136,30 @@ class Server {
           console.log(`🔧 Development mode - API available at http://localhost:${this.port}/api`);
         }
 
-        // Kick off an incremental sync on startup (non-blocking)
-        (async () => {
-          try {
-            console.log('⏳ Running initial incremental sync on startup...');
-            const result = await this.transcriptService.syncMeetings({ incremental: true });
-            console.log('✅ Initial incremental sync complete');
-          } catch (err) {
-            console.error('❌ Initial incremental sync failed:', err.message);
+        const runAutoIncrementalSync = async () => {
+          if (this.isAutoSyncRunning) {
+            console.log('⏸️ Auto-sync already running, skipping this cycle');
+            return;
           }
-        })();
+          this.isAutoSyncRunning = true;
+          try {
+            console.log('⏳ Running incremental sync...');
+            await this.transcriptService.syncMeetings({ incremental: true });
+            console.log('✅ Incremental sync complete');
+          } catch (err) {
+            console.error('❌ Incremental sync failed:', err.message);
+          } finally {
+            this.isAutoSyncRunning = false;
+          }
+        };
+
+        // Kick off an incremental sync on startup (non-blocking)
+        runAutoIncrementalSync();
+
+        // Schedule auto-sync every 2 hours
+        const TWO_HOURS_MS = 2 * 60 * 60 * 1000;
+        this.autoSyncInterval = setInterval(runAutoIncrementalSync, TWO_HOURS_MS);
+        console.log('🕒 Auto-sync scheduled every 2 hours');
       });
     } catch (error) {
       console.error('Failed to start server:', error);
@@ -153,6 +169,11 @@ class Server {
 
   async stop() {
     try {
+      if (this.autoSyncInterval) {
+        clearInterval(this.autoSyncInterval);
+        this.autoSyncInterval = null;
+        console.log('🛑 Auto-sync interval cleared');
+      }
       if (this.transcriptService && this.transcriptService.db) {
         await this.transcriptService.db.close();
       }

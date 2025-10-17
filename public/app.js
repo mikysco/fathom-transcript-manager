@@ -258,7 +258,7 @@ function displayResults(results) {
         searchResults.innerHTML = `
             <div class="text-center text-gray-500 py-8">
                 <i class="fas fa-search text-4xl mb-4"></i>
-                <p>No transcripts found for your search. Try syncing data or a different query.</p>
+                <p>No transcripts found for your search. Try a different query.</p>
             </div>
         `;
         // Clear selections and hide controls
