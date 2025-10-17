@@ -849,4 +849,30 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('Fathom Transcript Manager initialized');
     // Load dashboard metrics on page load
     loadDashboard();
+    
+    // Add global function to fix durations (for debugging)
+    window.fixDurations = async () => {
+        try {
+            console.log('🔧 Fixing durations...');
+            const response = await fetch('/api/sync/fix-durations', { method: 'POST' });
+            const result = await response.json();
+            console.log('Fix result:', result);
+            if (result.success) {
+                alert(`✅ ${result.message}`);
+                // Refresh current search if any
+                const currentSearch = document.querySelector('input[type="text"]:focus, input[type="email"]:focus');
+                if (currentSearch && currentSearch.value.trim()) {
+                    const searchType = currentSearch.id.replace('Input', '').replace('email', 'email').replace('domain', 'domain').replace('company', 'company');
+                    await searchTranscripts(searchType);
+                }
+            } else {
+                alert(`❌ Fix failed: ${result.error}`);
+            }
+        } catch (error) {
+            console.error('Fix error:', error);
+            alert(`❌ Fix error: ${error.message}`);
+        }
+    };
+    
+    console.log('💡 To fix durations, run: fixDurations()');
 });
