@@ -209,12 +209,18 @@ async function downloadTranscript(id) {
                         if (typeof transcriptData === 'string') {
                             try {
                                 transcriptData = JSON.parse(transcriptData);
+                                console.log('Successfully parsed transcript JSON');
                             } catch (parseError) {
                                 // If parsing fails, it might be a plain text transcript
                                 console.error('Failed to parse transcript as JSON:', parseError);
                                 formattedTranscript = transcriptData;
+                                return;
                             }
                         }
+
+                        console.log('Transcript data type:', typeof transcriptData);
+                        console.log('Is array:', Array.isArray(transcriptData));
+                        console.log('Keys:', Object.keys(transcriptData || {}));
 
                         // Now transcriptData should be an object or array
                         // The format from Fathom is an object where keys are array indices
@@ -237,7 +243,7 @@ async function downloadTranscript(id) {
                                     
                                     // Check if the value is already an object or needs parsing
                                     if (typeof transcriptData[key] === 'string') {
-                                        // Try to parse as JSON
+                                        // Try to parse as JSON first
                                         try {
                                             entry = JSON.parse(transcriptData[key]);
                                         } catch (e) {
@@ -291,8 +297,8 @@ async function downloadTranscript(id) {
                                 return `${speaker} [${timestamp}]: ${text}`;
                             }).join('\n\n');
                         } else {
-                            // Fallback to string representation
-                            formattedTranscript = String(transcriptData);
+                            // Fallback - if it's not an object or array, it might be a string
+                            formattedTranscript = transcriptData;
                         }
                     } catch (error) {
                         console.error('Error parsing transcript:', error);
