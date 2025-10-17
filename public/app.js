@@ -212,8 +212,40 @@ async function downloadTranscript(id) {
                             transcriptData = transcript.transcript;
                         }
 
-                        // Handle array of transcript entries
-                        if (Array.isArray(transcriptData)) {
+                        // Handle object with string keys (the actual format from Fathom)
+                        if (typeof transcriptData === 'object' && !Array.isArray(transcriptData)) {
+                            const entries = [];
+                            
+                            // Extract all values from the object (each value is a JSON string)
+                            for (const key in transcriptData) {
+                                if (transcriptData.hasOwnProperty(key)) {
+                                    try {
+                                        // Parse each entry (which is a JSON string)
+                                        const entry = JSON.parse(transcriptData[key]);
+                                        entries.push(entry);
+                                    } catch (parseError) {
+                                        console.error('Error parsing individual entry:', parseError);
+                                    }
+                                }
+                            }
+                            
+                            // Sort by timestamp if available
+                            entries.sort((a, b) => {
+                                if (a.timestamp && b.timestamp) {
+                                    return a.timestamp.localeCompare(b.timestamp);
+                                }
+                                return 0;
+                            });
+                            
+                            // Format as readable conversation
+                            formattedTranscript = entries.map(entry => {
+                                const speaker = entry.speaker?.display_name || 'Unknown Speaker';
+                                const text = entry.text || '';
+                                const timestamp = entry.timestamp || '';
+                                return `[${timestamp}] ${speaker}: ${text}`;
+                            }).join('\n');
+                        } else if (Array.isArray(transcriptData)) {
+                            // Handle array of transcript entries
                             formattedTranscript = transcriptData.map(entry => {
                                 const speaker = entry.speaker?.display_name || 'Unknown Speaker';
                                 const text = entry.text || '';
